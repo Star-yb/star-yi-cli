@@ -1,0 +1,40 @@
+export com.star.admin.model.entity.Users
+    -> package com.star.admin.model.dto
+
+
+
+LoginView {
+    id
+    username
+    token: String
+    tokenTimeout: Long
+}
+
+input LoginInput {
+    id?
+    username
+    password
+    status?
+    //    dynamic avatar
+}
+
+input RegisterInput {
+    #allScalars?
+    username
+    password
+}
+
+VerifyView {
+    //    需要字段: 认证token ,认证token的状态. id 过期字段,当前用户的状态,id
+    tokenId: Any?
+    token: String
+    tokenTimeout: Long
+    expired: Boolean?
+    userStatus: Boolean?
+    userId: String
+
+}
+
+input VerifyInput{
+    token: String
+}

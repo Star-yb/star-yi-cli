@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="zh" xmlns:sa="http://www.thymeleaf.org/extras/sa-token">
+
+<head th:replace="~{common/fragments :: head('角色管理', null)}"></head>
+
+<body>
+
+    <!-- 左侧菜单栏 -->
+    <aside th:replace="~{common/fragments :: sidebar('role')}"></aside>
+
+    <!-- 右侧主体内容 -->
+    <main class="main-wrapper">
+        <!-- 顶部导航 -->
+        <header th:replace="~{common/fragments :: topbar('角色管理')}"></header>
+
+        <!-- 内容区域 -->
+        <div class="content-area">
+            <div class="page-header">
+                <div>
+                    <h1 class="page-title">角色管理</h1>
+                    <p class="page-subtitle">管理系统的角色分类及权限分配。</p>
+                </div>
+                <div>
+                    <!-- 添加和导出按钮 -->
+                    <button class="btn btn-primary" onclick="openRoleModal()">
+                        <i class='bx bx-plus'></i>
+                        添加角色
+                    </button>
+             <!--       <button class="btn btn-outline" style="margin-left: 12px;">
+                        <i class='bx bx-export'></i>
+                        导出数据
+                    </button>-->
+                </div>
+            </div>
+
+            <!-- 搜索过滤表单 -->
+            <form class="search-card" th:action="@{/admin/role}" method="get">
+                <div class="form-group">
+                    <label>角色名称</label>
+                    <input type="text" name="roleName" class="form-control" placeholder="请输入角色名称检索..." th:value="${param.roleName}">
+                </div>
+                <div class="form-group">
+                    <label>角色标识</label>
+                    <input type="text" name="roleCode" class="form-control" placeholder="请输入角色标识..." th:value="${param.roleCode}">
+                </div>
+                <div class="form-group">
+                    <label>状态</label>
+                    <select class="form-control" name="status">
+                        <option value="">全部</option>
+                        <option value="0" th:selected="${#strings.equals(param.status, '0')}">正常</option>
+                        <option value="1" th:selected="${#strings.equals(param.status, '1')}">停用</option>
+                    </select>
+                </div>
+                
+                <input type="hidden" name="size" th:if="${param.size != null}" th:value="${param.size}">
+
+                <div class="search-actions">
+                    <button type="submit" class="btn btn-primary" style="height: 40px;">
+                        <i class='bx bx-search'></i> 搜索
+                    </button>
+                    <a th:href="@{/admin/role}" class="btn btn-outline" style="height: 40px; text-decoration: none; display: flex; align-items: center;">
+                        <i class='bx bx-reset'></i> 重置
+                    </a>
+                </div>
+            </form>
+
+            <!-- 数据表格卡片 -->
+            <div class="table-card">
+                <div class="table-toolbar">
+                    <div class="table-toolbar-left">
+                        <button class="btn btn-outline" style="padding: 6px 12px; font-size: 0.75rem;">
+                            <i class='bx bx-trash' style="color: var(--danger-color);"></i> 批量删除
+                        </button>
+                    </div>
+                    <div>
+                        <span style="font-size: 0.875rem; color: var(--text-muted);">共查询到 <strong
+                                style="color: var(--text-main);" th:text="${rolesPageResult.count}">5</strong> 个角色</span>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 50px;"><input type="checkbox"></th>
+                                <th>角色编号</th>
+                                <th>角色名称</th>
+                                <th>角色标识</th>
+                                <th>描述说明</th>
+                                <th>状态</th>
+                                <th>创建时间</th>
+                                <th style="text-align: right;">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- 没有数据 -->
+                            <tr th:if="${#lists.isEmpty(rolesPageResult.results)}">
+                                <td colspan="8" style="text-align: center; padding: 40px 0; color: var(--text-muted);">
+                                    <i class='bx bx-folder-open' style="font-size: 3rem; opacity: 0.5;"></i>
+                                    <p style="margin-top: 8px;">未找到匹配的角色数据</p>
+                                </td>
+                            </tr>
+
+                            <!-- 动态渲染数据 -->
+                            <tr th:each="role : ${rolesPageResult.results}">
+                                <td><input type="checkbox"></td>
+                                <td th:text="${role.id}">1</td>
+                                <td>
+                                    <span style="font-weight: 600; color: var(--text-main);" th:text="${role.roleName}">角色名</span>
+                                </td>
+                                <td>
+                                    <span class="badge badge-info" th:text="${role.roleCode}">code</span>
+                                </td>
+                                <td style="color: var(--text-muted);" th:text="${role.description != null ? role.description : '-'}">说明</td>
+                                <td>
+                                    <span th:if="${role.status == 0}" class="badge badge-success">正常</span>
+                                    <span th:if="${role.status == 1}" class="badge badge-danger" style="background: #fee2e2; color: #991b1b;">停用</span>
+                                </td>
+                                <td style="color: var(--text-muted);" th:text="${role.createdTime != null ? #strings.substring(role.createdTime, 0, 16) : '-'}">
+                                    2023-01-01
+                                </td>
+                                <td>
+                                    <div class="action-links" style="justify-content: flex-end;">
+                                        <a href="javascript:void(0)" class="action-link" title="编辑信息"
+                                           th:data-id="${role.id}"
+                                           th:data-rolename="${role.roleName}"
+                                           th:data-rolecode="${role.roleCode}"
+                                           th:data-description="${role.description}"
+                                           th:data-status="${role.status}"
+                                           onclick="openRoleModal(this)">
+                                            <i class='bx bx-edit-alt'></i>
+                                        </a>
+                                        <a th:href="@{/admin/role-permission(roleId=${role.id})}" class="action-link" title="分配权限">
+                                            <i class='bx bx-check-shield'></i>
+                                        </a>
+                                        <a href="javascript:void(0)" class="action-link" th:title="${role.status == 0 ? '停用此角色' : '启用此角色'}"
+                                           th:data-id="${role.id}" th:data-status="${role.status}"
+                                           onclick="toggleStatus(this.getAttribute('data-id'), parseInt(this.getAttribute('data-status')))">
+                                            <i th:class="${role.status == 0 ? 'bx bx-block' : 'bx bx-check-circle'}"></i>
+                                        </a>
+                                        <a href="javascript:void(0)" class="action-link danger" title="彻底删除"
+                                           th:data-id="${role.id}"
+                                           onclick="deleteRole(this.getAttribute('data-id'))">
+                                            <i class='bx bx-trash'></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+
+                        </tbody>
+                    </table>
+                </div>
+
+                <th:block th:replace="~{common/fragments :: adminPagination(${rolesPageResult}, '/admin/role')}"></th:block>
+            </div>
+        </div>
+    </main>
+    </main>
+
+    <!-- 角色表单弹窗 (添加/编辑) -->
+    <div class="modal-overlay" id="roleEditModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="roleModalTitle">添加修改角色</h3>
+                <div class="modal-close" onclick="closeModal('roleEditModal')"><i class='bx bx-x'></i></div>
+            </div>
+            <div class="modal-body">
+                <form id="roleEditForm">
+                    <input type="hidden" id="form-roleId" name="id">
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label>角色名称 <span style="color: var(--danger-color);">*</span></label>
+                        <input type="text" class="form-control" id="form-roleName" name="roleName" required>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label>角色标识 <span style="color: var(--danger-color);">*</span></label>
+                        <input type="text" class="form-control" id="form-roleCode" name="roleCode" required>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label>描述说明</label>
+                        <textarea class="form-control" id="form-description" name="description" rows="3" style="width:100%;resize:vertical;"></textarea>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label>角色状态</label>
+                        <select class="form-control" id="form-roleStatus" name="status">
+                            <option value="0">正常</option>
+                            <option value="1">停用</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeModal('roleEditModal')">取消</button>
+                <button class="btn btn-primary" onclick="submitRoleForm()">确 认 保 存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 引入公共模板: 包含弹窗与公共脚本 -->
+    <div th:replace="~{common/fragments :: common_modals}"></div>
+    <div th:replace="~{common/fragments :: common_scripts}"></div>
+    
+    <script>
+        // ============== 1. 添加/编辑角色 ==============
+        function openRoleModal(element) {
+            $('#roleEditForm')[0].reset();
+            $('#form-roleId').val('');
+
+            if (element) {
+                var $el = $(element);
+                $('#roleModalTitle').text('编辑系统角色');
+                $('#form-roleId').val($el.data('id'));
+                $('#form-roleName').val($el.data('rolename'));
+                $('#form-roleCode').val($el.data('rolecode'));
+                $('#form-description').val($el.data('description'));
+                $('#form-roleStatus').val($el.data('status'));
+            } else {
+                $('#roleModalTitle').text('新增系统角色');
+            }
+            $('#roleEditModal').addClass('active');
+        }
+
+        function submitRoleForm() {
+            var roleId = $('#form-roleId').val();
+            var dataObj = {};
+            $.each($('#roleEditForm').serializeArray(), function (i, field) {
+                if (field.value !== undefined) {
+                    dataObj[field.name] = field.value;
+                }
+            });
+            dataObj.status = parseInt(dataObj.status ?? 0);
+
+            var isEdit = !!roleId;
+            var url = isEdit ? '/roles/' + roleId : '/roles';
+            var method = isEdit ? 'PUT' : 'POST';
+
+            $.ajax({
+                url: url,
+                type: method,
+                contentType: 'application/json',
+                data: JSON.stringify(dataObj),
+                success: function (res) {
+                    if (res.code === 200) {
+                        customAlert('保存成功！', '成功');
+                        closeModal('roleEditModal');
+                        setTimeout(function () { location.reload(); }, 1000);
+                    } else {
+                        customAlert('保存失败: ' + (res.message || res.msg), '错误');
+                    }
+                },
+                error: function (err) {
+                    customAlert('网路请求发生错误，保存失败。', '错误');
+                }
+            });
+        }
+
+        // ============== 2. 彻底删除角色 ==============
+        function deleteRole(roleId) {
+            customConfirm('高风险操作：确定要彻底删除该角色吗？这可能破坏相关的权限功能映射！', function () {
+                $.ajax({
+                    url: '/admin/role/' + roleId,
+                    type: 'DELETE',
+                    success: function (res) {
+                        if (res.code === 200) {
+                            customAlert('成功清除角色', '成功');
+                            setTimeout(function () { location.reload(); }, 1000);
+                        } else {
+                            customAlert('删除失败: ' + (res.message || res.msg), '错误');
+                        }
+                    }
+                });
+            });
+        }
+
+        // ============== 3. 拦截/起用状态 ==============
+        function toggleStatus(roleId, currentStatus) {
+            var newStatus = (currentStatus === 0) ? 1 : 0;
+            var confirmMsg = (currentStatus === 0) ? "确定要停用该角色？此操作会立刻拦截含有该角色的用户！" : "确定要重新启用该角色数据吗？";
+
+            customConfirm(confirmMsg, function () {
+                var url = '/roles/' + roleId + (newStatus === 0 ? '/enable' : '/disable');
+                $.ajax({
+                    url: url,
+                    type: 'POST',
+                    success: function (res) {
+                        if (res.code === 200) {
+                            customAlert('操作成功!', '成功');
+                            setTimeout(function () { location.reload(); }, 1000);
+                        } else {
+                            customAlert('操作失败: ' + (res.message || res.msg), '错误');
+                        }
+                    },
+                    error: function (err) {
+                        customAlert('网络请求发生错误，请稍后再试。', '错误');
+                    }
+                });
+            });
+        }
+    </script>
+</body>
+
+</html>

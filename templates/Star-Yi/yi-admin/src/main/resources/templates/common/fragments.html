@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="zh" xmlns:th="http://www.thymeleaf.org">
+<!-- 1. Head部分 -->
+
+<head th:fragment="head(pageTitle, extraStyles)">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${pageTitle} + ' - 易系统后台管理'">后台管理</title>
+    <!-- 引入Google Fonts: Inter -->
+    <!-- <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"> -->
+    <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+
+    <!-- 引入BoxIcons -->
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <!-- 引入自定义样式 -->
+    <link rel="stylesheet" th:href="@{/static/css/admin.css(v='20260806')}">
+    <script>
+        /* 尽早恢复侧栏折叠态，避免首屏闪烁 */
+        (function () {
+            try {
+                if (localStorage.getItem('admin.sidebar.collapsed') === '1') {
+                    document.documentElement.classList.add('sidebar-collapsed');
+                }
+            } catch (e) { /* ignore */ }
+        })();
+    </script>
+    <style>
+        .user-profile {
+            position: relative;
+            cursor: pointer;
+        }
+        .user-menu {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: calc(100% + 8px);
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+            min-width: 160px;
+            z-index: 1000;
+            overflow: hidden;
+        }
+        .user-menu.open {
+            display: block;
+        }
+        .user-menu-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 12px;
+            color: var(--text-main);
+            text-decoration: none;
+            font-size: 0.9rem;
+            border: none;
+            background: #fff;
+            width: 100%;
+            text-align: left;
+            cursor: pointer;
+        }
+        .user-menu-item:hover {
+            background: #f8fafc;
+        }
+        .user-menu-item.danger {
+            color: #dc2626;
+        }
+    </style>
+    <!-- 可变的额外样式 -->
+    <th:block th:if="${extraStyles != null}">
+        <th:block th:replace="${extraStyles}"></th:block>
+    </th:block>
+</head>
+
+<body>
+
+    <!-- 2. 左侧菜单栏 -->
+    <aside th:fragment="sidebar(activeMenu)" class="sidebar" id="adminSidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-brand" title="Star-Yi Admin">
+                <i class='bx bxl-xing'></i>
+                <span class="sidebar-brand-text">Star-Yi Admin</span>
+            </div>
+            <button type="button" class="sidebar-toggle" id="sidebarToggleBtn"
+                    title="收起/展开导航" aria-label="收起或展开侧栏">
+                <i class='bx bx-menu-alt-left sidebar-toggle-icon-collapse'></i>
+                <i class='bx bx-menu sidebar-toggle-icon-expand'></i>
+            </button>
+        </div>
+        <ul class="sidebar-menu" id="adminSidebarMenu">
+            <!-- 由各 AdminPageModule 动态注册（yi-admin 内置 + apps/* 业务模块） -->
+            <th:block th:each="category : ${adminMenuCategories}">
+                <li class="menu-category" th:text="${category.name}">分组</li>
+                <li th:each="item : ${category.items}"
+                    th:class="${activeMenu == item.menuKey ? 'menu-item active' : 'menu-item'}"
+                    th:attr="data-menu-key=${item.menuKey}">
+                    <a th:href="${item.path}" class="menu-link" th:title="${item.label}">
+                        <i th:class="${item.icon}"></i>
+                        <span class="menu-link-text" th:text="${item.label}">菜单</span>
+                    </a>
+                </li>
+            </th:block>
+        </ul>
+    </aside>
+
+    <!-- 3. 顶部导航 -->
+    <header th:fragment="topbar(pageName)" class="topbar">
+        <div class="topbar-left">
+            <button type="button" class="topbar-sidebar-toggle" id="topbarSidebarToggleBtn"
+                    title="收起/展开导航" aria-label="收起或展开侧栏">
+                <i class='bx bx-menu'></i>
+            </button>
+            <div class="breadcrumb">
+                <i class='bx bx-home-alt'></i>
+                <a href="#" style="color: inherit; text-decoration: none;">首页</a>
+                <i class='bx bx-chevron-right'></i>
+                <span th:text="${pageCategory != null ? pageCategory : '系统管理'}">系统管理</span>
+                <i class='bx bx-chevron-right'></i>
+                <span style="color: var(--primary-color);" th:text="${pageName}">页面名称</span>
+            </div>
+        </div>
+
+        <div class="topbar-right">
+            <i class='bx bx-bell topbar-icon'>
+                <span class="icon-badge"></span>
+            </i>
+            <div class="user-profile">
+                <img src="https://ui-avatars.com/api/?name=Admin&background=4f46e5&color=fff" alt="User Avatar">
+                <div class="user-info">
+                    <span class="user-name" th:text="${stp.getSession().get('name')}">管理员</span>
+                    <span class="user-role">超级管理员</span>
+                </div>
+                <i class='bx bx-chevron-down' style="color: var(--text-muted);"></i>
+                <div class="user-menu" id="userMenu">
+                    <button type="button" class="user-menu-item" onclick="openChangePasswordModal()">
+                        <i class='bx bx-lock-open-alt'></i>
+                        <span>修改密码</span>
+                    </button>
+                    <button type="button" class="user-menu-item danger" onclick="logoutSystem()">
+                        <i class='bx bx-log-out'></i>
+                        <span>退出登录</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 4. 公共弹窗资源 -->
+    <div th:fragment="common_modals">
+        <!-- 确认弹窗 -->
+        <div class="modal-overlay" id="confirmModal" style="z-index: 9999;">
+            <div class="modal-content" style="max-width: 400px;">
+                <div class="modal-header">
+                    <h3 class="modal-title" id="confirmTitle">确认操作</h3>
+                    <div class="modal-close" onclick="closeModal('confirmModal')"><i class='bx bx-x'></i></div>
+                </div>
+                <div class="modal-body">
+                    <p id="confirmMessage" style="color: var(--text-main); font-size: 1rem;"></p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline" onclick="closeModal('confirmModal')">取消</button>
+                    <button class="btn btn-primary" id="confirmBtn">确定</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 提示弹窗 (Alert) -->
+        <div class="modal-overlay" id="alertModal" style="z-index: 9999;">
+            <div class="modal-content" style="max-width: 400px;">
+                <div class="modal-header">
+                    <h3 class="modal-title" id="alertTitle">提示</h3>
+                    <div class="modal-close" onclick="closeModal('alertModal')"><i class='bx bx-x'></i></div>
+                </div>
+                <div class="modal-body">
+                    <p id="alertMessage" style="color: var(--text-main); font-size: 1rem;"></p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary" onclick="closeModal('alertModal')">确定</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 修改密码弹窗 -->
+        <div class="modal-overlay" id="changePasswordModal" style="z-index: 9999;">
+            <div class="modal-content" style="max-width: 420px;">
+                <div class="modal-header">
+                    <h3 class="modal-title">修改密码</h3>
+                    <div class="modal-close" onclick="closeModal('changePasswordModal')"><i class='bx bx-x'></i></div>
+                </div>
+                <div class="modal-body">
+                    <form id="changePasswordForm">
+                        <div class="form-group" style="margin-bottom: 12px;">
+                            <label>原密码</label>
+                            <input type="password" id="oldPassword" class="form-control" required>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 12px;">
+                            <label>新密码</label>
+                            <input type="password" id="newPassword" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label>确认新密码</label>
+                            <input type="password" id="confirmPassword" class="form-control" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline" onclick="closeModal('changePasswordModal')">取消</button>
+                    <button class="btn btn-primary" onclick="submitChangePassword()">确认修改</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. 通用分页（保留当前 URL 查询参数，支持总页数展示与跳转） -->
+    <th:block th:fragment="adminPagination(pageResult, basePath)">
+        <div class="admin-pager pagination" th:if="${pageResult != null && pageResult.count > 0}">
+            <p class="pagination-summary">
+                显示 <em th:text="${(pageResult.page - 1) * pageResult.size + 1}">1</em>–<em
+                    th:text="${(pageResult.page * pageResult.size) > pageResult.count ? pageResult.count : (pageResult.page * pageResult.size)}">10</em>
+                条，共 <em th:text="${pageResult.count}">0</em> 条 ·
+                第 <em th:text="${pageResult.page}">1</em> / <em th:text="${pageResult.totalPages}">1</em> 页
+            </p>
+            <div class="pagination-toolbar">
+                <div class="pagination-nav">
+                    <button type="button" class="page-btn admin-pager-nav" title="上一页"
+                            th:disabled="${pageResult.first}"
+                            th:attr="data-page=${pageResult.page - 1}, data-base=${basePath}, data-total=${pageResult.totalPages}">
+                        <i class='bx bx-chevron-left'></i>
+                    </button>
+                    <button type="button" class="page-btn active" th:text="${pageResult.page}">1</button>
+                    <button type="button" class="page-btn admin-pager-nav" title="下一页"
+                            th:disabled="${pageResult.last}"
+                            th:attr="data-page=${pageResult.page + 1}, data-base=${basePath}, data-total=${pageResult.totalPages}">
+                        <i class='bx bx-chevron-right'></i>
+                    </button>
+                </div>
+                <span class="pagination-divider" aria-hidden="true"></span>
+                <div class="pagination-jump">
+                    <span class="page-jump-text">跳至</span>
+                    <input type="number" class="page-jump-input admin-pager-jump-input" min="1"
+                           th:max="${pageResult.totalPages}" th:value="${pageResult.page}" aria-label="页码">
+                    <span class="page-jump-text">页</span>
+                    <button type="button" class="page-btn page-btn-go admin-pager-jump-btn"
+                            th:attr="data-base=${basePath}, data-total=${pageResult.totalPages}">跳转</button>
+                </div>
+            </div>
+        </div>
+        <div class="admin-pager pagination pagination-empty" th:if="${pageResult != null && pageResult.count == 0}">
+            <span>共 0 条数据</span>
+        </div>
+    </th:block>
+
+    <!-- 6. 公共脚本 -->
+    <div th:fragment="common_scripts">
+        <script th:src="@{/static/js/jquery-4.0.0.min.js}"></script>
+        <script>
+            // ============== 侧栏：折叠 + 当前菜单定位 ==============
+            var SIDEBAR_COLLAPSED_KEY = 'admin.sidebar.collapsed';
+
+            function isSidebarCollapsed() {
+                return document.documentElement.classList.contains('sidebar-collapsed');
+            }
+
+            function setSidebarCollapsed(collapsed) {
+                document.documentElement.classList.toggle('sidebar-collapsed', !!collapsed);
+                try {
+                    localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? '1' : '0');
+                } catch (e) { /* ignore */ }
+                var title = collapsed ? '展开导航' : '收起导航';
+                $('#sidebarToggleBtn, #topbarSidebarToggleBtn').attr('title', title).attr('aria-label', title);
+            }
+
+            function toggleSidebarCollapsed() {
+                setSidebarCollapsed(!isSidebarCollapsed());
+            }
+
+            /**
+             * 将当前激活菜单滚入可视区域（相对 .sidebar-menu 滚动容器居中）。
+             * 菜单很多时避免用户还要手动下滑寻找高亮项。
+             */
+            function scrollActiveMenuIntoView(preferSmooth) {
+                var menuEl = document.getElementById('adminSidebarMenu');
+                if (!menuEl) {
+                    return;
+                }
+                var activeEl = menuEl.querySelector('.menu-item.active');
+                if (!activeEl) {
+                    return;
+                }
+
+                var menuRect = menuEl.getBoundingClientRect();
+                var activeRect = activeEl.getBoundingClientRect();
+                var activeCenter = (activeRect.top + activeRect.bottom) / 2;
+                var menuCenter = (menuRect.top + menuRect.bottom) / 2;
+                var delta = activeCenter - menuCenter;
+                var targetTop = menuEl.scrollTop + delta;
+
+                if (typeof menuEl.scrollTo === 'function') {
+                    menuEl.scrollTo({
+                        top: Math.max(0, targetTop),
+                        behavior: preferSmooth ? 'smooth' : 'auto'
+                    });
+                } else {
+                    menuEl.scrollTop = Math.max(0, targetTop);
+                }
+            }
+
+            $(function () {
+                try {
+                    setSidebarCollapsed(localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1');
+                } catch (e) {
+                    setSidebarCollapsed(false);
+                }
+
+                $('#sidebarToggleBtn, #topbarSidebarToggleBtn').on('click', function (e) {
+                    e.preventDefault();
+                    toggleSidebarCollapsed();
+                });
+
+                // 首屏先瞬时定位，再在布局稳定后补一次居中
+                scrollActiveMenuIntoView(false);
+                window.setTimeout(function () {
+                    scrollActiveMenuIntoView(true);
+                }, 120);
+            });
+
+            // ============== 通用弹窗操控 ==============
+            function closeModal(modalId) {
+                $('#' + modalId).removeClass('active');
+            }
+
+            function customAlert(msg, title) {
+                $('#alertTitle').text(title || '提示');
+                $('#alertMessage').text(msg);
+                $('#alertModal').addClass('active');
+            }
+
+            function customConfirm(msg, callback, title) {
+                $('#confirmTitle').text(title || '确认操作');
+                $('#confirmMessage').text(msg);
+
+                $('#confirmBtn').off('click').on('click', function () {
+                    closeModal('confirmModal');
+                    if (typeof callback === 'function') {
+                        callback();
+                    }
+                });
+
+                $('#confirmModal').addClass('active');
+            }
+
+            // ============== 顶部用户菜单 ==============
+            $(document).on('click', '.user-profile', function (e) {
+                e.stopPropagation();
+                $('#userMenu').toggleClass('open');
+            });
+            $(document).on('click', function () {
+                $('#userMenu').removeClass('open');
+            });
+            $(document).on('click', '.user-menu', function (e) {
+                e.stopPropagation();
+            });
+
+            // ============== 修改密码 & 退出登录 ==============
+            function openChangePasswordModal() {
+                $('#userMenu').removeClass('open');
+                $('#changePasswordForm')[0].reset();
+                $('#changePasswordModal').addClass('active');
+            }
+
+            function submitChangePassword() {
+                var oldPassword = ($('#oldPassword').val() || '').trim();
+                var newPassword = ($('#newPassword').val() || '').trim();
+                var confirmPassword = ($('#confirmPassword').val() || '').trim();
+
+                if (!oldPassword || !newPassword || !confirmPassword) {
+                    customAlert('请完整填写密码信息', '提示');
+                    return;
+                }
+                if (newPassword !== confirmPassword) {
+                    customAlert('两次输入的新密码不一致', '提示');
+                    return;
+                }
+
+                $.ajax({
+                    url: '/users/changePassword',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        oldPassword: oldPassword,
+                        newPassword: newPassword
+                    }),
+                    success: function (res) {
+                        if (res.code === 200) {
+                            closeModal('changePasswordModal');
+                            customAlert('密码修改成功，请重新登录', '成功');
+                            setTimeout(function () {
+                                logoutSystem(true);
+                            }, 800);
+                        } else {
+                            customAlert('修改失败: ' + (res.message || res.msg), '错误');
+                        }
+                    },
+                    error: function () {
+                        customAlert('网络请求发生错误，修改失败', '错误');
+                    }
+                });
+            }
+
+            // ============== 管理后台通用分页 ==============
+            function adminPagerGoTo(page, basePath, totalPages) {
+                var target = parseInt(page, 10);
+                if (isNaN(target) || target < 1) {
+                    target = 1;
+                }
+                totalPages = parseInt(totalPages, 10) || 0;
+                if (totalPages > 0 && target > totalPages) {
+                    target = totalPages;
+                }
+                var params = new URLSearchParams(window.location.search);
+                params.set('page', String(target));
+                var query = params.toString();
+                window.location.href = basePath + (query ? '?' + query : '');
+            }
+
+            $(document).on('click', '.admin-pager-nav', function () {
+                if (this.disabled) {
+                    return;
+                }
+                adminPagerGoTo($(this).data('page'), $(this).data('base'), $(this).data('total'));
+            });
+
+            $(document).on('click', '.admin-pager-jump-btn', function () {
+                var $jump = $(this).closest('.pagination-jump');
+                adminPagerGoTo(
+                    $jump.find('.admin-pager-jump-input').val(),
+                    $(this).data('base'),
+                    $(this).data('total')
+                );
+            });
+
+            $(document).on('keydown', '.admin-pager-jump-input', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    $(this).closest('.pagination-jump').find('.admin-pager-jump-btn').click();
+                }
+            });
+
+            function logoutSystem(silent) {
+                $('#userMenu').removeClass('open');
+                var doLogout = function () {
+                    $.ajax({
+                        url: '/auth/logout',
+                        type: 'POST',
+                        success: function () {
+                            window.location.href = '/admin/login?logout=true';
+                        },
+                        error: function () {
+                            // 即便接口异常也兜底跳转，避免卡死在已失效会话
+                            window.location.href = '/admin/login?logout=true';
+                        }
+                    });
+                };
+                if (silent) {
+                    doLogout();
+                    return;
+                }
+                customConfirm('确定要退出登录吗？', doLogout, '退出登录');
+            }
+        </script>
+    </div>
+
+</body>
+
+</html>

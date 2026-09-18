@@ -1,0 +1,409 @@
+
+drop database test_dwd;
+drop database test_dws;
+drop database test_ads;
+
+-- 原始数据操作-----------------------------------------------------------------------------------
+
+
+
+create database doubandy;
+create database test_dwd;
+create database test_dws;
+create database test_ads;
+
+
+
+
+
+show tables from test_dws;
+show databases ;
+
+
+drop table doubandy.movies;
+drop table doubandy.comments;
+create table doubandy.movies
+(
+    id    int,
+    mname string,
+    bf    double,
+    lx    string,
+    gj    string,
+    sj    string,
+    pf    string
+)row format delimited
+    fields terminated by ',';
+
+create  table doubandy.comments
+(
+    uname string,
+    uip   string,
+    wz    string,
+    pf    int,
+    pl    string,
+    mid   int
+)row format delimited
+    fields terminated by ',';
+
+load data inpath '/aaa/movies_file' into table doubandy.movies;
+load data inpath '/aaa/comments_file' into table doubandy.comments;
+
+
+/*-- 如果表存在，在表中追加
+load data inpath '/weather/station.log' into table station;
+load data inpath '/weather/temperature.log' into table temperature;
+
+-- 如果表存在，清理表后追加
+load data inpath '/weather/temperature.log' overwrite into table temperature;*/
+
+
+select * from doubandy.movies;
+select * from doubandy.comments;
+
+
+
+
+
+-- dwd层数据操作-----------------------------------------------------------------------------------
+drop table test_dwd.movies;
+drop table test_dwd.comments;
+
+create table test_dwd.movies
+(
+    id    int,
+    mname string,
+    bf    double,
+    lx    string,
+    gj    string,
+    sj    string,
+    pf    string
+)row format delimited
+    fields terminated by ',';
+
+create  table test_dwd.comments
+(
+    uname string,
+    uip   string,
+    wz    string,
+    pf    int,
+    pl    string,
+    mid   int
+)row format delimited
+    fields terminated by ',';
+
+
+insert into table test_dwd.movies
+select * from doubandy.movies where id IS not NULL and  bf is not null and mname is not null and lx is not null;
+
+insert into table test_dwd.comments
+select * from doubandy.comments where uname IS not NULL and uip is not NULL and pf is not null and pl is not null;
+
+
+select * from test_dwd.movies ;
+select * from test_dwd.comments ;
+
+-- dws层-----------------------------------------------------------------------------------
+--0:各国家总电影
+drop table test_dws.gj_m_sum;
+
+create  table test_dws.gj_m_sum
+(
+    gjname string,
+    sum    int
+)row format delimited
+    fields terminated by ',';
+
+insert into table test_dws.gj_m_sum
+SELECT
+    CASE
+        WHEN split(gj, '/')[0] LIKE '%中国%' THEN '中国'
+        ELSE split(gj, '/')[0]
+        END AS a,
+    count(*) AS c
+FROM test_dwd.movies m
+GROUP BY
+    CASE
+        WHEN split(gj, '/')[0] LIKE '%中国%' THEN '中国'
+        ELSE split(gj, '/')[0]
+        END;
+
+
+--0.1各国家好评电影数
+drop table test_dws.gj_m_h_sum;
+
+create  table test_dws.gj_m_h_sum
+(
+    gjname string,
+    sum    int
+)row format delimited
+    fields terminated by ',';
+
+insert into table test_dws.gj_m_h_sum
+SELECT
+    CASE
+        WHEN split(gj, '/')[0] LIKE '%中国%' THEN '中国'
+        ELSE split(gj, '/')[0]
+        END AS a,
+    count(*) AS c
+FROM test_dwd.movies m
+where m.bf>7.5
+GROUP BY
+    CASE
+        WHEN split(gj, '/')[0] LIKE '%中国%' THEN '中国'
+        ELSE split(gj, '/')[0]
+        END;
+
+
+
+-- 1：根据时间分类，统计每年各国家电影有多少部
+drop table test_dws.lx_g_t_sum;
+
+create  table test_dws.lx_g_t_sum
+(
+    gjname string,
+    ltiam string,
+    sum    int
+)row format delimited
+    fields terminated by ',';
+
+insert into table test_dws.lx_g_t_sum
+SELECT
+    CASE
+        WHEN split(gj, '/')[0] LIKE '%中国%' THEN '中国'
+        ELSE split(gj, '/')[0]
+        END AS a,
+    trim(substr(sj, 0, 4)) AS b,
+    count(*) AS c
+FROM test_dwd.movies m
+GROUP BY
+    CASE
+        WHEN split(gj, '/')[0] LIKE '%中国%' THEN '中国'
+        ELSE split(gj, '/')[0]
+        END,
+    trim(substr(sj, 0, 4));
+
+
+
+-- 2：根据国家分类，统计各国家各种类的电影有多少部
+drop table test_dws.lx_g_sum;
+
+create  table test_dws.lx_g_sum
+(
+    gjname string,
+    ltiam string,
+    sum    int
+)row format delimited
+    fields terminated by ',';
+
+insert into table test_dws.lx_g_sum
+SELECT
+    CASE
+       WHEN split(gj, '/')[0] LIKE '%中国%' THEN '中国'
+       ELSE split(gj, '/')[0]
+       END AS a,
+    trim(split(lx, '/')[0]) leixin,
+    count(*) num
+from test_dwd.movies
+GROUP BY
+    trim(split(lx, '/')[0]),
+     CASE
+       WHEN split(gj, '/')[0] LIKE '%中国%' THEN '中国'
+       ELSE split(gj, '/')[0]
+    END;
+
+-- 3：统计各类型电影的评论数
+drop table test_dws.lx_m_c_sum;
+
+create  table test_dws.lx_m_c_sum
+(
+    lxname string,
+    sum    int
+)row format delimited
+    fields terminated by ',';
+
+insert into table test_dws.lx_m_c_sum
+select
+    trim(split(lx, '/')[0]) ,
+count(A.pl)
+FROM test_dwd.comments A
+         JOIN test_dwd.movies B
+                   ON A.mid=B.id
+group by trim(split(lx, '/')[0]);
+
+--3.1 各类型电影的好评数
+drop table test_dws.lx_m_c_h_sum;
+
+create  table test_dws.lx_m_c_h_sum
+(
+    lxname string,
+    sum    int
+)row format delimited
+    fields terminated by ',';
+
+insert into table test_dws.lx_m_c_h_sum
+select
+    trim(split(lx, '/')[0]) ,
+    count(A.pl)
+FROM test_dwd.comments A
+         JOIN test_dwd.movies B
+              ON A.mid=B.id
+where A.pf>3
+group by trim(split(lx, '/')[0]);
+
+-- ads层操作-----------------------------------------------------------------------------------
+-- 1用户对各国家电影的好评率
+drop table test_ads.gj_m_hpl;
+
+create  table test_ads.gj_m_hpl
+(
+    gj string,
+    m_sum    int,
+    m_h_sum    int,
+    m_h_lu    string
+)row format delimited
+    fields terminated by ',';
+
+insert into table test_ads.gj_m_hpl
+SELECT
+    m.gjname,
+    m.sum,
+    COALESCE(hrm.sum, 0) AS highly_rated_movies,
+    ROUND(if(m.sum > 0, (COALESCE(hrm.sum, 0) / m.sum) * 100, 0), 2) AS rating_rate
+FROM test_dws.gj_m_sum m
+         LEFT JOIN test_dws.gj_m_h_sum hrm ON m.gjname = hrm.gjname;
+
+
+
+-- 2根据时间分类，统计每年各国家电影有多少部
+drop table test_ads.gj_t_m;
+
+create  table test_ads.gj_t_m
+(
+    gj string,
+    ltime    string,
+    sum    int
+)row format delimited
+    fields terminated by ',';
+
+insert into table test_ads.gj_t_m
+select * from test_dws.lx_g_t_sum;
+
+
+-- 3：根据国家分类，统计各国家各种类的电影有多少部
+drop table test_ads.gj_l_m;
+
+create  table test_ads.gj_l_m
+(
+    gj string,
+    lx    string,
+    sum    int
+)row format delimited
+    fields terminated by ',';
+
+insert into table test_ads.gj_l_m
+select * from test_dws.lx_g_sum;
+
+-- 4用户对各类型电影的评论好评率
+drop table test_ads.lx_m_hpl;
+
+create  table test_ads.lx_m_hpl
+(
+    lx string,
+    m_sum    int,
+    m_h_sum    int,
+    m_h_lu    string
+)row format delimited
+    fields terminated by ',';
+
+insert into table test_ads.lx_m_hpl
+SELECT
+    m.lxname,
+    m.sum,
+    COALESCE(hrm.sum, 0) AS highly_rated_movies,
+    ROUND(if(m.sum > 0, (COALESCE(hrm.sum, 0) / m.sum) * 100, 0), 2) AS rating_rate
+FROM test_dws.lx_m_c_sum m
+         LEFT JOIN test_dws.lx_m_c_h_sum hrm ON m.lxname = hrm.lxname;
+
+
+-- 导出数据操作-------------------------------------------------------
+-- load data inpath '/aaa/gj_l_m.csv' into table test_ads.gj_l_m;
+-- load data inpath '/aaa/gj_m_hpl.csv' into table test_ads.gj_m_hpl;
+-- load data inpath '/aaa/gj_t_m.csv' into table test_ads.gj_t_m;
+-- load data inpath '/aaa/lx_m_hpl.csv' into table test_ads.lx_m_hpl;
+
+
+create database stu;
+
+use stu;
+
+create table if not exists stocks
+(
+    `exchange` string,
+    `symbol` string,
+    `ymd` string,
+    `price_open` float,
+    `price_high` float,
+    `price_low` float,
+    `price_close` float,
+    `volume` int,
+    `price_adj_close` float
+)
+    row format delimited fields terminated by ',';
+
+describe stocks;
+
+
+
+create external table if not exists dividends
+(
+    `ymd` string,
+    `dividend` float
+)
+    partitioned by(`exchange` string ,`symbol` string)
+    row format delimited fields terminated by ',';
+
+load data inpath '/aaa/stocks.csv'  overwrite into table stocks;
+
+select s.ymd,s.symbol,s.price_close
+from stocks s
+where    symbol='IBM'   and ymd='1962-01-02';
+
+
+
+create external table if not exists dividends_unpartitioned
+(
+    `exchange` string ,
+    `symbol` string,
+    `ymd` string,
+    `dividend` float
+)
+    row format delimited fields terminated by ',';
+
+
+
+load data inpath '/aaa/dividends.csv'  overwrite into table dividends_unpartitioned;
+
+set hive.exec.dynamic.partition=true;
+set hive.exec.dynamic.partition.mode=nonstrict;
+set hive.exec.max.dynamic.partitions.pernode=1000;
+
+insert overwrite table stu.dividends partition(`exchange`,`symbol`)
+select `ymd`,`dividend`,`exchange`,`symbol` from dividends_unpartitioned;
+
+SELECT
+    ymd,
+    AVG(price_adj_close) AS avg_price_adj_close
+FROM
+    stocks
+WHERE
+        symbol = 'AAPL'
+GROUP BY
+    ymd
+HAVING
+        AVG(price_adj_close) > 50;
+
+
+select year(ymd),max(s.price_close)
+from stocks s
+where s.symbol='IBM' and year(ymd)>=2000
+group by year(ymd);

@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="zh" xmlns:sa="http://www.thymeleaf.org/extras/sa-token">
+
+<head th:replace="~{common/fragments :: head('用户管理', ~{::style})}">
+    <style>
+        /* Custom Multi-Select */
+        .custom-multi-select {
+            position: relative;
+            width: 100%;
+            font-family: inherit;
+        }
+
+        .custom-multi-select .select-box {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            min-height: 40px;
+            padding: 6px 10px;
+            border: 1px solid var(--border-color, #d1d5db);
+            border-radius: 6px;
+            background: #fff;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+
+        .custom-multi-select .select-box:hover {
+            border-color: var(--primary-color, #4f46e5);
+        }
+
+        .custom-multi-select .selected-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            flex: 1;
+        }
+
+        .custom-multi-select .tag {
+            display: flex;
+            align-items: center;
+            background: #e0e7ff;
+            color: #3730a3;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            border: 1px solid #c7d2fe;
+        }
+
+        .custom-multi-select .tag i {
+            margin-left: 6px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            color: #6366f1;
+            transition: color 0.1s;
+        }
+
+        .custom-multi-select .tag i:hover {
+            color: #ef4444;
+        }
+
+        .custom-multi-select .placeholder {
+            color: #9ca3af;
+            font-size: 0.95rem;
+            line-height: normal;
+        }
+
+        .custom-multi-select .select-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            margin-top: 4px;
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            z-index: 100;
+            max-height: 280px;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .custom-multi-select.open .select-dropdown {
+            display: flex;
+        }
+
+        .custom-multi-select .dropdown-item {
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .custom-multi-select .dropdown-item:hover {
+            background: #f8fafc;
+        }
+
+        .custom-multi-select .dropdown-item.checked {
+            background: #f1f5f9;
+        }
+
+        .custom-multi-select .dropdown-list {
+            overflow-y: auto;
+        }
+
+        .custom-multi-select .select-all {
+            border-bottom: 1px solid #e5e7eb;
+            font-weight: 500;
+            background: #fafafa;
+        }
+
+        .custom-multi-select input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            accent-color: #4f46e5;
+        }
+
+        .custom-multi-select label {
+            cursor: pointer;
+            flex: 1;
+            margin: 0;
+            user-select: none;
+        }
+
+        .custom-multi-select .dropdown-search {
+            padding: 8px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .custom-multi-select .dropdown-search input {
+            width: 100%;
+            padding: 6px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            outline: none;
+            font-size: 0.875rem;
+            transition: border-color 0.2s;
+        }
+
+        .custom-multi-select .dropdown-search input:focus {
+            border-color: #4f46e5;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- 左侧菜单栏 -->
+    <aside th:replace="~{common/fragments :: sidebar('user')}"></aside>
+
+    <!-- 右侧主体内容 -->
+    <main class="main-wrapper">
+        <!-- 顶部导航 -->
+        <header th:replace="~{common/fragments :: topbar('用户管理')}"></header>
+
+        <!-- 内容区域 -->
+        <div class="content-area">
+            <div class="page-header">
+                <div>
+                    <h1 class="page-title">用户管理</h1>
+                    <p class="page-subtitle">管理系统用户，分配角色及管理状态。</p>
+                </div>
+                <div>
+                    <!-- 这里可以使用Thymeleaf的权限控制 sec:authorize 等 -->
+                    <!-- 添加和导出按钮 -->
+                    <button class="btn btn-primary" onclick="openUserModal()">
+                        <i class='bx bx-plus'></i>
+                        添加用户
+                    </button>
+                    <button class="btn btn-outline" style="margin-left: 12px;" onclick="exportUsers()">
+                        <i class='bx bx-export'></i>
+                        导出数据
+                    </button>
+                </div>
+            </div>
+
+            <!-- 搜索过滤表单 -->
+            <form class="search-card" th:action="@{/admin/user}" method="get">
+                <div class="form-group">
+                    <label>登录账号</label>
+                    <input type="text" name="username" class="form-control" placeholder="请输入账号..."
+                        th:value="${param.username}">
+                </div>
+                <div class="form-group">
+                    <label>用户姓名</label>
+                    <input type="text" name="nickname" class="form-control" placeholder="请输入姓名..."
+                        th:value="${param.nickname}">
+                </div>
+                <div class="form-group">
+                    <label>超级管理员</label>
+                    <select class="form-control" name="superAdmin">
+                        <option value="">全部</option>
+                        <option value="1" th:selected="${#strings.equals(param.superAdmin, '1')}">是</option>
+                        <option value="0" th:selected="${#strings.equals(param.superAdmin, '0')}">否</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>用户状态</label>
+                    <select class="form-control" name="status">
+                        <option value="">全部状态</option>
+                        <option value="0" th:selected="${#strings.equals(param.status, '0')}">正常</option>
+                        <option value="1" th:selected="${#strings.equals(param.status, '1')}">停用</option>
+                    </select>
+                </div>
+
+                <!-- 保留先前的 size 参数（如果存在） -->
+                <input type="hidden" name="size" th:if="${param.size != null}" th:value="${param.size}">
+
+                <div class="search-actions">
+                    <button type="submit" class="btn btn-primary" style="height: 40px;">
+                        <i class='bx bx-search'></i> 搜索
+                    </button>
+                    <!-- 重置搜索条件：返回默认页面 -->
+                    <a th:href="@{/admin/user}" class="btn btn-outline"
+                        style="height: 40px; text-decoration: none; display: flex; align-items: center;">
+                        <i class='bx bx-reset'></i> 重置
+                    </a>
+                </div>
+            </form>
+
+            <!-- 数据表格卡片 -->
+            <div class="table-card">
+                <div class="table-toolbar">
+                    <div class="table-toolbar-left">
+                        <button class="btn btn-outline" style="padding: 6px 12px; font-size: 0.75rem;">
+                            <i class='bx bx-trash' style="color: var(--danger-color);"></i> 批量删除
+                        </button>
+                    </div>
+                    <div>
+                        <span style="font-size: 0.875rem; color: var(--text-muted);">共查询到 <strong
+                                style="color: var(--text-main);" th:text="${usersPageResult.count}">128</strong>
+                            条数据</span>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 50px;"><input type="checkbox"></th>
+                                <th>用户信息</th>
+                                <th>登录账号</th>
+                                <th>角色分配</th>
+                                <th>联系方式</th>
+                                <th>状态</th>
+                                <th>创建时间</th>
+                                <th style="text-align: right;">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- 没有数据的情况下 -->
+                            <tr th:if="${#lists.isEmpty(usersPageResult.results)}">
+                                <td colspan="8" style="text-align: center; padding: 40px 0; color: var(--text-muted);">
+                                    <i class='bx bx-folder-open' style="font-size: 3rem; opacity: 0.5;"></i>
+                                    <p style="margin-top: 8px;">未找到匹配的用户数据</p>
+                                </td>
+                            </tr>
+
+                            <!-- 动态渲染存在的数据 -->
+                            <tr th:each="user : ${usersPageResult.results}">
+                                <td><input type="checkbox"></td>
+                                <td>
+                                    <div class="avatar-cell">
+                                        <!-- 利用 ui-avatars 绘制首字母头像，注意需转义 ampersand 或者使用 Thymeleaf URL 构建 -->
+                                        <img th:src="@{'https://ui-avatars.com/api/'(name=${user.nickname != null ? user.nickname : user.username}, background='random')}"
+                                            alt="Avatar">
+                                        <div class="avatar-info">
+                                            <span class="avatar-info-name"
+                                                th:text="${user.nickname != null ? user.nickname : '-'}">张三</span>
+                                            <span class="avatar-info-email"
+                                                th:text="${user.email != null ? user.email : '-'}">开发部</span>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td th:text="${user.username}">zhangsan</td>
+                                <td th:with="roleNames=${new java.util.ArrayList()}">
+                                    <th:block th:if="${user.superAdmin == 1}">
+                                        <th:block th:if="${roleNames.add('超级管理员')}"></th:block>
+                                    </th:block>
+                                    <th:block th:if="${user.roleIds != null}">
+                                        <th:block th:each="roleId : ${user.roleIds}">
+                                            <th:block th:each="role : ${rolesList}" th:if="${role.id == roleId}">
+                                                <th:block th:if="${roleNames.add(role.roleName)}"></th:block>
+                                            </th:block>
+                                        </th:block>
+                                    </th:block>
+
+                                    <div th:title="${#strings.listJoin(roleNames, ', ')}"
+                                        style="display: flex; align-items: center; cursor: help; flex-wrap: wrap; gap: 4px;">
+
+                                        <!-- 1. 基于字段渲染：真正的系统超管专属特殊样式 -->
+                                        <span th:if="${user.superAdmin == 1}" 
+                                              class="badge badge-warning" 
+                                              style="background: #4f46e5; color: white;">超级管理员</span>
+
+                                        <!-- 2. 普通角色分配统一无差别渲染 -->
+                                        <th:block th:with="normalLimit=${user.superAdmin == 1 ? 1 : 2}, printedCount=${new java.util.ArrayList()}">
+                                            <th:block th:if="${user.roleIds != null}">
+                                                <th:block th:each="roleId : ${user.roleIds}">
+                                                    <th:block th:each="role : ${rolesList}" th:if="${role.id == roleId}">
+                                                        <span th:if="${#lists.size(printedCount) < normalLimit}" 
+                                                              th:text="${role.roleName}"
+                                                              class="badge badge-info"></span>
+                                                        <th:block th:if="${#lists.size(printedCount) < normalLimit}">
+                                                            <th:block th:if="${printedCount.add(true)}"></th:block>
+                                                        </th:block>
+                                                    </th:block>
+                                                </th:block>
+                                            </th:block>
+                                        </th:block>
+
+                                        <!-- 3. 追加标记位 -->
+                                        <span th:if="${#lists.size(roleNames) > 2}" class="badge"
+                                              style="background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; padding: 0.15rem 0.4rem;"
+                                              th:text="'+' + (${#lists.size(roleNames)} - 2)"></span>
+                                        <span th:if="${#lists.isEmpty(roleNames)}"
+                                              style="color: var(--text-muted); font-size: 0.875rem;">暂无角色</span>
+                                    </div>
+                                </td>
+                                <td th:text="${user.phone != null ? user.phone : '-'}">13800138000</td>
+                                <td>
+                                    <span th:if="${user.status == 0}" class="badge badge-success">正常</span>
+                                    <span th:if="${user.status == 1}" class="badge badge-danger"
+                                        style="background: #fee2e2; color: #991b1b;">停用</span>
+                                </td>
+                                <td style="color: var(--text-muted);"
+                                    th:text="${user.createdTime != null ? #strings.substring(user.createdTime, 0, 16) : '-'}">
+                                    2023-10-24 15:30</td>
+                                <td>
+                                    <div class="action-links" style="justify-content: flex-end;">
+                                        <!-- 不区分超管，常规显示和操作。遵守 Spring Boot Thymeleaf 3 级别的安全规范，使用 data-* 传文本 ID -->
+                                        <a href="javascript:void(0)" class="action-link" title="编辑资料"
+                                            th:data-id="${user.id}" th:data-username="${user.username}"
+                                            th:data-nickname="${user.nickname}" th:data-email="${user.email}"
+                                            th:data-phone="${user.phone}" th:data-status="${user.status}"
+                                            onclick="openUserModal(this)">
+                                            <i class='bx bx-edit-alt'></i>
+                                        </a>
+                                        <a href="javascript:void(0)" class="action-link" title="分配角色"
+                                            th:data-id="${user.id}" th:data-roles="${user.roleIds}"
+                                            onclick="openRoleModal(this.getAttribute('data-id'), this.getAttribute('data-roles'))">
+                                            <i class='bx bx-shield-quarter'></i>
+                                        </a>
+                                        <a href="javascript:void(0)" class="action-link" title="重置密码"
+                                            th:data-id="${user.id}"
+                                            onclick="resetPassword(this.getAttribute('data-id'))">
+                                            <i class='bx bx-key'></i>
+                                        </a>
+                                        <a href="javascript:void(0)" class="action-link"
+                                            th:title="${user.status == 0 ? '停用此用户' : '启用此用户'}" th:data-id="${user.id}"
+                                            th:data-status="${user.status}"
+                                            onclick="toggleStatus(this.getAttribute('data-id'), parseInt(this.getAttribute('data-status')))">
+                                            <i
+                                                th:class="${user.status == 0 ? 'bx bx-block' : 'bx bx-check-circle'}"></i>
+                                        </a>
+                                        <a href="javascript:void(0)" class="action-link danger" title="删除"
+                                            th:data-id="${user.id}" onclick="deleteUser(this.getAttribute('data-id'))">
+                                            <i class='bx bx-trash'></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <th:block th:replace="~{common/fragments :: adminPagination(${usersPageResult}, '/admin/user')}"></th:block>
+            </div>
+        </div>
+    </main>
+
+    <!-- 用户表单弹窗 (添加/编辑) -->
+    <div class="modal-overlay" id="userModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="userModalTitle">添加修改用户</h3>
+                <div class="modal-close" onclick="closeModal('userModal')"><i class='bx bx-x'></i></div>
+            </div>
+            <div class="modal-body">
+                <!-- 预留表单结构，由前端 JS 手动序列化或者接管 -->
+                <form id="userForm">
+                    <input type="hidden" id="form-userId" name="id">
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label>登录账号 <span style="color: var(--danger-color);">*</span></label>
+                        <input type="text" class="form-control" id="form-username" name="username" required>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label>用户姓名 (昵称)</label>
+                        <input type="text" class="form-control" id="form-nickname" name="nickname">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label>联系邮箱</label>
+                        <input type="email" class="form-control" id="form-email" name="email">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label>手机号码</label>
+                        <input type="text" class="form-control" id="form-phone" name="phone">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label>账号状态</label>
+                        <select class="form-control" id="form-status" name="status">
+                            <option value="0">正常</option>
+                            <option value="1">停用</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeModal('userModal')">取消</button>
+                <button class="btn btn-primary" onclick="saveUser()">确 认 保 存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 角色分配弹窗 -->
+    <div class="modal-overlay" id="roleModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">分配角色</h3>
+                <div class="modal-close" onclick="closeModal('roleModal')"><i class='bx bx-x'></i></div>
+            </div>
+            <div class="modal-body" style="height: 400px;">
+                <form id="roleForm">
+                    <input type="hidden" id="role-userId" name="userId">
+                    <div style="padding: 10px 0;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: 500;">选择分配的角色</label>
+                        <div class="custom-multi-select" id="roleMultiSelect">
+                            <div class="select-box" onclick="toggleRoleDropdown(event)">
+                                <div class="selected-tags" id="selectedRoleTags">
+                                    <span class="placeholder">请选择角色...</span>
+                                </div>
+                                <i class='bx bx-chevron-down' id="roleDropdownIcon"></i>
+                            </div>
+                            <div class="select-dropdown" id="roleDropdown">
+                                <div class="dropdown-search">
+                                    <input type="text" id="roleSearchInput" placeholder="输入关键字搜索角色...">
+                                </div>
+                                <div class="dropdown-item select-all">
+                                    <input type="checkbox" id="selectAllRoles" onchange="toggleAllRoles(this)">
+                                    <label for="selectAllRoles">全选当前项</label>
+                                </div>
+                                <div class="dropdown-list" id="roleDropdownList">
+                                    <div th:each="role : ${rolesList}" class="dropdown-item role-item">
+                                        <input type="checkbox" class="role-checkbox" name="roleIds"
+                                            th:value="${role.id}" th:data-name="${role.roleName}"
+                                            onchange="updateSelectedRoles()">
+                                        <label th:text="${role.roleName}">角色名称</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeModal('roleModal')">取消</button>
+                <button class="btn btn-primary" onclick="saveRole()">确 认 分 配</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 引入公共弹窗和公共脚本 -->
+    <div th:replace="~{common/fragments :: common_modals}"></div>
+    <div th:replace="~{common/fragments :: common_scripts}"></div>
+
+    <script>
+
+        // ============== 1. 添加/编辑用户 ==============
+        function openUserModal(element) {
+            $('#userForm')[0].reset();
+            $('#form-userId').val('');
+
+            if (element) {
+                var $el = $(element);
+                $('#userModalTitle').text('编辑用户资料');
+                $('#form-userId').val($el.data('id'));
+                $('#form-username').val($el.data('username'));
+                $('#form-nickname').val($el.data('nickname'));
+                $('#form-email').val($el.data('email'));
+                $('#form-phone').val($el.data('phone'));
+                $('#form-status').val($el.data('status'));
+            } else {
+                $('#userModalTitle').text('新增系统用户');
+            }
+            $('#userModal').addClass('active');
+        }
+
+        function saveUser() {
+            var userId = $('#form-userId').val();
+            var dataObj = {};
+            $.each($('#userForm').serializeArray(), function (i, field) {
+                if (field.value) {
+                    dataObj[field.name] = field.value;
+                }
+            });
+            dataObj.status = parseInt(dataObj.status ?? 0);
+
+            var isEdit = !!userId;
+            var url = isEdit ? '/users/' + userId : '/users';
+            var method = isEdit ? 'PUT' : 'POST';
+
+            $.ajax({
+                url: url,
+                type: method,
+                contentType: 'application/json',
+                data: JSON.stringify(dataObj),
+                success: function (res) {
+                    if (res.code === 200) {
+                        customAlert('保存成功！', '成功');
+                        closeModal('userModal');
+                        setTimeout(function () { location.reload(); }, 1000);
+                    } else {
+                        customAlert('保存失败: ' + (res.message || res.msg), '错误');
+                    }
+                },
+                error: function (err) {
+                    customAlert('网路错误，保存失败。', '错误');
+                }
+            });
+        }
+
+        // ============== 1.5 重置密码 ==============
+        function resetPassword(userId) {
+            customConfirm("确定要重置该用户的密码吗？", function () {
+                // 预留重置密码的接口对接
+                $.ajax({
+                    url: '/users/' + userId + '/resetPassword', // 预留地址
+                    type: 'POST',
+                    success: function (res) {
+                        if (res.code === 200) {
+                            customAlert('密码重置成功!', '成功');
+                        } else {
+                            customAlert('重置失败: ' + (res.message || res.msg), '错误');
+                        }
+                    },
+                    error: function (err) {
+                        customAlert('网络错误，请稍后再试。', '错误');
+                    }
+                });
+            });
+        }
+
+        // ============== 2. 启停用 用户 ==============
+        function toggleStatus(userId, currentStatus) {
+            var newStatus = (currentStatus === 0) ? 1 : 0;
+            var confirmMsg = (currentStatus === 0) ? "确定要停用该登录账号吗？" : "确定要启用该登录账号吗？";
+
+            customConfirm(confirmMsg, function () {
+                var url = '/users/' + userId + (newStatus === 0 ? '/enable' : '/disable');
+                $.ajax({
+                    url: url,
+                    type: 'POST',
+                    success: function (res) {
+                        if (res.code === 200) {
+                            customAlert('操作成功!', '成功');
+                            setTimeout(function () { location.reload(); }, 1000);
+                        } else {
+                            customAlert('操作失败: ' + (res.message || res.msg), '错误');
+                        }
+                    },
+                    error: function (err) {
+                        customAlert('网络请求发生错误，请稍后再试。', '错误');
+                    }
+                });
+            });
+        }
+
+        // ============== 3. 删除用户 ==============
+        function deleteUser(userId) {
+            customConfirm('高风险操作：确定要彻底删除该用户吗？此操作不可恢复！', function () {
+                $.ajax({
+                    url: '/admin/user/' + userId,
+                    type: 'DELETE',
+                    success: function (res) {
+                        if (res.code === 200) {
+                            customAlert('成功删除关联用户', '成功');
+                            setTimeout(function () { location.reload(); }, 1000);
+                        } else {
+                            customAlert('删除失败: ' + (res.message || res.msg), '错误');
+                        }
+                    }
+                });
+            });
+        }
+
+        // ============== 4. 角色分配 ==============
+        // Toggle dropdown visibility
+        function toggleRoleDropdown(e) {
+            if (e && $(e.target).closest('.tag i').length) return; // Prevent opening when clicking remove icon
+            var $multiSelect = $('#roleMultiSelect');
+            var isOpen = $multiSelect.hasClass('open');
+
+            if (isOpen) {
+                $multiSelect.removeClass('open');
+                $('#roleDropdownIcon').removeClass('bx-chevron-up').addClass('bx-chevron-down');
+            } else {
+                $multiSelect.addClass('open');
+                $('#roleDropdownIcon').removeClass('bx-chevron-down').addClass('bx-chevron-up');
+                $('#roleSearchInput').val('').trigger('input'); // Reset search
+                $('#roleSearchInput').focus();
+            }
+        }
+
+        // Close dropdown when clicking outside
+        $(document).on('click', function (e) {
+            if (!$(e.target).closest('#roleMultiSelect').length) {
+                $('#roleMultiSelect').removeClass('open');
+                $('#roleDropdownIcon').removeClass('bx-chevron-up').addClass('bx-chevron-down');
+            }
+        });
+
+        // Update tags when checkboxes change
+        function updateSelectedRoles() {
+            var selected = [];
+            var allVisibleChecked = true;
+            var totalVisible = 0;
+
+            $('.role-checkbox').each(function () {
+                var $item = $(this).closest('.role-item');
+                var isVisible = $item.is(':visible');
+
+                if ($(this).is(':checked')) {
+                    selected.push({ id: $(this).val(), name: $(this).data('name') });
+                    $item.addClass('checked');
+                } else {
+                    $item.removeClass('checked');
+                    if (isVisible) {
+                        allVisibleChecked = false;
+                    }
+                }
+                if (isVisible) totalVisible++;
+            });
+
+            // Update Select All Checkbox based on visible items
+            if (totalVisible === 0) {
+                $('#selectAllRoles').prop('checked', false);
+            } else {
+                $('#selectAllRoles').prop('checked', allVisibleChecked);
+            }
+
+            // Render tags
+            var $container = $('#selectedRoleTags');
+            $container.empty();
+
+            if (selected.length === 0) {
+                $container.append('<span class="placeholder">请选择角色...</span>');
+            } else {
+                selected.forEach(function (item) {
+                    $container.append(
+                        '<span class="tag" data-id="' + item.id + '">' +
+                        item.name +
+                        '<i class="bx bx-x" onclick="removeRoleTag(event, \'' + item.id + '\')"></i>' +
+                        '</span>'
+                    );
+                });
+            }
+        }
+
+        function removeRoleTag(e, id) {
+            e.stopPropagation(); // prevent dropdown toggle
+            $('.role-checkbox[value="' + id + '"]').prop('checked', false).trigger('change');
+        }
+
+        function toggleAllRoles(checkbox) {
+            var isChecked = $(checkbox).is(':checked');
+            $('.role-item:visible .role-checkbox').prop('checked', isChecked).trigger('change');
+        }
+
+        // Search filtering
+        $(document).on('input', '#roleSearchInput', function () {
+            var val = $(this).val().toLowerCase();
+
+            $('.role-item').each(function () {
+                var name = $(this).find('label').text().toLowerCase();
+                if (name.indexOf(val) > -1) {
+                    $(this).show();
+                } else {
+                    $(this).hide();
+                }
+            });
+
+            // Update Select All state for the new filtered view
+            updateSelectedRoles();
+        });
+
+        // Initialize modal values mapping
+        function openRoleModal(userId, roleIdsStr) {
+            $('#roleForm')[0].reset();
+            $('#role-userId').val(userId);
+
+            var roleIds = [];
+            if (roleIdsStr) {
+                try {
+                    roleIds = JSON.parse(roleIdsStr);
+                } catch (e) {
+                    console.error("Failed to parse roleIds", e);
+                }
+            }
+
+            // uncheck all, then check relevant ones
+            $('.role-checkbox').prop('checked', false);
+            $('.role-checkbox').each(function () {
+                if (roleIds.includes(parseInt($(this).val()))) {
+                    $(this).prop('checked', true);
+                }
+            });
+
+            $('#roleMultiSelect').removeClass('open');
+            $('#roleDropdownIcon').removeClass('bx-chevron-up').addClass('bx-chevron-down');
+
+            // Render states properly
+            updateSelectedRoles();
+
+            $('#roleModal').addClass('active');
+        }
+
+        function saveRole() {
+            var userId = $('#role-userId').val();
+            var roleIds = [];
+            $('input[name="roleIds"]:checked').each(function () {
+                roleIds.push(parseInt($(this).val()));
+            });
+
+            var payload = {
+                id: userId,
+                roleIds: roleIds
+            };
+
+            $.ajax({
+                url: '/users/' + userId + '/roles',
+                type: 'PUT',
+                contentType: 'application/json',
+                data: JSON.stringify(payload),
+                success: function (res) {
+                    if (res.code === 200) {
+                        customAlert('角色分配成功！', '成功');
+                        closeModal('roleModal');
+                        setTimeout(function () { location.reload(); }, 1000);
+                    } else {
+                        customAlert('角色分配失败: ' + (res.message || res.msg), '错误');
+                    }
+                }
+            });
+        }
+
+        function exportUsers() {
+            // 新打开一个页面，然后关闭
+
+            window.open('/users/export', '_blank');
+
+        }
+    </script>
+</body>
+
+</html>

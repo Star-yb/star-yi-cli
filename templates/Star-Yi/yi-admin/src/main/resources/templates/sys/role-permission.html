@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="zh" xmlns:th="http://www.thymeleaf.org">
+
+<head th:replace="~{common/fragments :: head('权限分配', ~{::style})}">
+    <style>
+        /* Custom Multi-Select */
+        .custom-multi-select {
+            position: relative;
+            width: 100%;
+            font-family: inherit;
+        }
+
+        .custom-multi-select .select-box {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            min-height: 40px;
+            padding: 6px 10px;
+            border: 1px solid var(--border-color, #d1d5db);
+            border-radius: 6px;
+            background: #fff;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+
+        .custom-multi-select .select-box:hover {
+            border-color: var(--primary-color, #4f46e5);
+        }
+
+        .custom-multi-select .selected-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            flex: 1;
+        }
+
+        .custom-multi-select .tag {
+            display: flex;
+            align-items: center;
+            background: #e0e7ff;
+            color: #3730a3;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            border: 1px solid #c7d2fe;
+        }
+
+        .custom-multi-select .tag i {
+            margin-left: 6px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            color: #6366f1;
+            transition: color 0.1s;
+        }
+
+        .custom-multi-select .tag i:hover {
+            color: #ef4444;
+        }
+
+        .custom-multi-select .placeholder {
+            color: #9ca3af;
+            font-size: 0.95rem;
+            line-height: normal;
+        }
+
+        .custom-multi-select .select-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            margin-top: 4px;
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            z-index: 100;
+            max-height: 350px;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .custom-multi-select.open .select-dropdown {
+            display: flex;
+        }
+
+        .custom-multi-select .dropdown-item {
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .custom-multi-select .dropdown-item:hover {
+            background: #f8fafc;
+        }
+
+        .custom-multi-select .dropdown-item.checked {
+            background: #f1f5f9;
+        }
+
+        .custom-multi-select .dropdown-list {
+            overflow-y: auto;
+        }
+
+        .custom-multi-select .select-all {
+            border-bottom: 1px solid #e5e7eb;
+            font-weight: 500;
+            background: #fafafa;
+        }
+
+        .custom-multi-select input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            accent-color: #4f46e5;
+        }
+
+        .custom-multi-select label {
+            cursor: pointer;
+            flex: 1;
+            margin: 0;
+            user-select: none;
+        }
+
+        .custom-multi-select .dropdown-search {
+            padding: 8px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .custom-multi-select .dropdown-search input {
+            width: 100%;
+            padding: 6px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            outline: none;
+            font-size: 0.875rem;
+            transition: border-color 0.2s;
+        }
+
+        .custom-multi-select .dropdown-search input:focus {
+            border-color: #4f46e5;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- 左侧菜单栏 -->
+    <aside th:replace="~{common/fragments :: sidebar('role')}"></aside>
+
+    <!-- 右侧主体内容 -->
+    <main class="main-wrapper">
+        <!-- 顶部导航 -->
+        <header th:replace="~{common/fragments :: topbar('角色权限分配')}"></header>
+
+        <!-- 内容区域 -->
+        <div class="content-area">
+            <div class="page-header">
+                <div>
+                    <h2 class="page-title">为角色分配权限：<span style="color: var(--primary-color);"
+                            th:text="${role.roleName}"></span></h2>
+                    <p class="page-subtitle">修改角色关联的权限记录，配置生效后将对关联该角色的所有用户产生影响。</p>
+                </div>
+                <div>
+                    <a th:href="@{/admin/role}" class="btn btn-outline">
+                        <i class='bx bx-arrow-back'></i>
+                        返回角色列表
+                    </a>
+                </div>
+            </div>
+
+            <div class="table-card" style="padding: 24px; height: 600px;">
+                <form id="permissionForm">
+                    <input type="hidden" id="perm-roleId" th:value="${role.id}">
+                    <div class="form-group" style="max-width: 600px;">
+                        <label
+                            style="font-weight: 600; font-size: 1rem; margin-bottom: 12px; display: block;">选择当前角色拥有的权限</label>
+
+                        <!-- 核心的多选框移植 -->
+                        <div class="custom-multi-select" id="permMultiSelect">
+                            <div class="select-box" id="permSelectBox">
+                                <div class="selected-tags" id="permSelectedTags">
+                                    <span class="placeholder">请搜索或选择权限项目...</span>
+                                </div>
+                                <i class='bx bx-chevron-down' id="permDropdownIcon"
+                                    style="font-size: 1.2rem; color: #9ca3af;"></i>
+                            </div>
+
+                            <div class="select-dropdown">
+                                <div class="dropdown-search" onclick="event.stopPropagation()">
+                                    <input type="text" id="permSearchInput" placeholder="搜索权限名称/标识...">
+                                </div>
+
+                                <label class="dropdown-item select-all" onclick="event.stopPropagation()">
+                                    <input type="checkbox" id="permSelectAll" onclick="toggleAllPerms(this)">
+                                    <span style="flex:1;">（全选当前过滤结果）</span>
+                                </label>
+
+                                <div class="dropdown-list" id="permDropdownList">
+                                    <label class="dropdown-item perm-item" th:each="perm : ${permissionsList}" onclick="event.stopPropagation()">
+                                        <input type="checkbox" name="permissionIds" class="perm-checkbox" 
+                                               th:value="${perm.id}" 
+                                               th:data-name="${perm.permissionName}">
+                                        
+                                        <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                                            <div style="display: flex; align-items: center;">
+                                                <i th:if="${perm.icon != null && perm.icon != ''}" th:class="'bx bx-' + ${perm.icon}" style="margin-right: 6px; color: var(--text-muted); font-size: 1.1rem;"></i>
+                                                <i th:if="${perm.icon == null || perm.icon == ''}" class='bx bx-radio-circle' style="margin-right: 6px; color: var(--text-muted); font-size: 1.1rem;"></i>
+                                                
+                                                <span th:text="${perm.permissionName}" style="color: var(--text-main); font-weight: 500;">权限名</span>
+                                                
+                                                <!-- UI 优化区分菜单和按钮 -->
+                                                <span th:if="${perm.permissionType == 1}" style="font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; margin-left: 8px; background: #e0e7ff; color: #4f46e5; border: 1px solid #c7d2fe;">导航菜单</span>
+                                                <span th:if="${perm.permissionType == 2}" style="font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; margin-left: 8px; background: #fef3c7; color: #d97706; border: 1px solid #fde68a;">操作按钮</span>
+                                            </div>
+                                            <!-- 显示唯一的代码标识 -->
+                                            <span class="perm-code" th:text="${perm.permissionCode}" style="font-size: 0.8rem; color: var(--text-muted); font-family: monospace;">代码标识</span>
+                                        </div>
+                                    </label>
+                                    <div id="permNoResults"
+                                        style="display: none; padding: 12px; text-align: center; color: #9ca3af; font-size: 0.85rem;">
+                                        无匹配权限记录
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <div style="margin-top: 32px;">
+                        <button type="button" class="btn btn-primary" onclick="savePermissions()"
+                            style="padding: 10px 24px;">
+                            <i class='bx bx-save'></i> 保存权限配置
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <!-- 引入公共模板: 包含弹窗与公共脚本 -->
+    <div th:replace="~{common/fragments :: common_modals}"></div>
+    <div th:replace="~{common/fragments :: common_scripts}"></div>
+
+    <script th:inline="javascript">
+        $(document).ready(function () {
+            // 1. 初始化分配的权限：只提取其 ID 以避免实体循环嵌套解析错误
+            var permIds = [];
+            /*[# th:each="p : ${permissionRoles}"]*/
+            permIds.push(/*[[${p.id}]]*/ 0);
+            /*[/]*/
+            
+            // 将匹配到的存在权限打钩并高亮
+            $('.perm-checkbox').each(function () {
+                var val = parseInt($(this).val());
+                if (permIds.includes(val)) {
+                    $(this).prop('checked', true);
+                    $(this).closest('.dropdown-item').addClass('checked');
+                }
+            });
+            // 触发一次视图更新生成 Tag
+            updateSelectedPerms();
+
+            // 2. 下拉框开关事件
+            $('#permSelectBox').on('click', function (e) {
+                e.stopPropagation();
+                $('#permMultiSelect').toggleClass('open');
+                if ($('#permMultiSelect').hasClass('open')) {
+                    $('#permDropdownIcon').removeClass('bx-chevron-down').addClass('bx-chevron-up');
+                    $('#permSearchInput').focus();
+                } else {
+                    $('#permDropdownIcon').removeClass('bx-chevron-up').addClass('bx-chevron-down');
+                }
+            });
+
+            // 点击外部关闭下拉框
+            $(document).on('click', function () {
+                $('#permMultiSelect').removeClass('open');
+                $('#permDropdownIcon').removeClass('bx-chevron-up').addClass('bx-chevron-down');
+            });
+
+            // 监听多选框打钩变更，同步Tag列表
+            $('.perm-checkbox').on('change', function () {
+                var $item = $(this).closest('.dropdown-item');
+                if ($(this).is(':checked')) {
+                    $item.addClass('checked');
+                } else {
+                    $item.removeClass('checked');
+                }
+                updateSelectedPerms();
+            });
+        });
+
+        // 核心同步视图方法
+        function updateSelectedPerms() {
+            var $container = $('#permSelectedTags');
+            var selectedItems = [];
+
+            // 找寻所有打钩项
+            $('.perm-checkbox:checked').each(function () {
+                selectedItems.push({
+                    id: $(this).val(),
+                    name: $(this).data('name')
+                });
+            });
+
+            // 更新全选状态
+            var visibleCount = $('.perm-item:visible').length;
+            var checkedVisibleCount = $('.perm-item:visible .perm-checkbox:checked').length;
+            $('#permSelectAll').prop('checked', visibleCount > 0 && selectedItems.length > 0 && checkedVisibleCount === visibleCount);
+
+            $container.empty();
+
+            if (selectedItems.length === 0) {
+                $container.html('<span class="placeholder">请搜索或选择权限项目...</span>');
+            } else {
+                $.each(selectedItems, function (i, item) {
+                    $container.append(
+                        '<span class="tag" data-id="' + item.id + '">' +
+                        item.name +
+                        '<i class="bx bx-x" onclick="removePermTag(event, \'' + item.id + '\')"></i>' +
+                        '</span>'
+                    );
+                });
+            }
+        }
+
+        function removePermTag(e, id) {
+            e.stopPropagation(); // 防止弹窗展开切换
+            $('.perm-checkbox[value="' + id + '"]').prop('checked', false).trigger('change');
+        }
+
+        function toggleAllPerms(checkbox) {
+            var isChecked = $(checkbox).is(':checked');
+            $('.perm-item:visible .perm-checkbox').prop('checked', isChecked).trigger('change');
+        }
+
+        // 搜索过滤方法，同时支持查名称和查代码标识
+        $(document).on('input', '#permSearchInput', function () {
+            var val = $(this).val().toLowerCase();
+            var visibleCount = 0;
+
+            $('.perm-item').each(function () {
+                var nameText = $(this).find('span').text().toLowerCase();
+                var codeText = $(this).find('.perm-code').text().toLowerCase();
+                
+                if (nameText.indexOf(val) > -1 || codeText.indexOf(val) > -1) {
+                    $(this).show();
+                    visibleCount++;
+                } else {
+                    $(this).hide();
+                }
+            });
+
+            if (visibleCount === 0) {
+                $('#permNoResults').show();
+            } else {
+                $('#permNoResults').hide();
+            }
+
+            updateSelectedPerms();
+        });
+
+        // ============ 3. 保存入库 ============
+        function savePermissions() {
+            var roleId = $('#perm-roleId').val();
+            var permIds = [];
+            $('input[name="permissionIds"]:checked').each(function () {
+                permIds.push(parseInt($(this).val()));
+            });
+
+            var payload = {
+                id: parseInt(roleId),
+                permissionIds: permIds
+            };
+
+            $.ajax({
+                url: '/roles/' + roleId + '/permission',
+                type: 'PUT',
+                contentType: 'application/json',
+                data: JSON.stringify(payload),
+                success: function (res) {
+                    if (res.code === 200) {
+                        customAlert('权限分配已成功应用！', '成功');
+                        setTimeout(function () {
+                            window.location.href = '/admin/role';
+                        }, 1200);
+                    } else {
+                        customAlert('权限分配失败: ' + (res.message || res.msg), '错误');
+                    }
+                },
+                error: function () {
+                    customAlert('网路请求发生异常。', '错误');
+                }
+            });
+        }
+    </script>
+</body>
+
+</html>
