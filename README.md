@@ -5,153 +5,145 @@
 <h1 align="center">star-yi-cli</h1>
 
 <p align="center">
-  <strong>Star-Yi 项目脚手架</strong> · 从骨架模板一键创建业务仓库，并在已有项目中增删 <code>apps/*</code> 模块
+  <strong>Star-Yi 项目创建器</strong> · 从 GitHub 仓库拉取骨架、改名成新项目，并在项目根目录留下增删应用模块的命令
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go&logoColor=white" alt="Go">
-  <img src="https://img.shields.io/badge/Java-21-ED8B00?logo=openjdk&logoColor=white" alt="Java">
-  <img src="https://img.shields.io/badge/Spring%20Boot-4.0.3-6DB33F?logo=springboot&logoColor=white" alt="Spring Boot">
+  <img src="https://img.shields.io/badge/Star--Yi-Java%20%C2%B7%20Maven-ED8B00?logo=openjdk&logoColor=white" alt="Star-Yi">
+  <img src="https://img.shields.io/badge/Star--Yi--Arc-Kotlin%20%C2%B7%20Gradle-7F52FF?logo=kotlin&logoColor=white" alt="Star-Yi-Arc">
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-informational" alt="Platform">
-  <img src="https://img.shields.io/badge/license-private-lightgrey" alt="License">
 </p>
 
 ---
 
-## 项目信息
+## 它做什么
 
-| 项 | 说明 |
-|----|------|
-| **项目名称** | `star-yi-cli` |
-| **定位** | Star-Yi Maven 多模块骨架的命令行创建器 |
-| **实现语言** | Go 1.22（Cobra CLI） |
-| **模块路径** | `github.com/star/star-yi-cli` |
-| **内置模板** | `templates/Star-Yi`（文件夹或 zip，优先 zip） |
-| **生成物** | 可运行的 Spring Boot 后端工程 + 项目专用工具脚本 |
+创建器本身不带模板。每个「版本」对应一个 GitHub 仓库，骨架怎么更新，创建出来的项目就跟着变：
 
-**Star-Yi** 是一套可复用的 Maven 多模块骨架。每个业务仓库都是在骨架上长出来的实例：固定模块不变，父工程坐标与 `apps/*` 业务模块按项目配置。
+| 版本 | 仓库 | 构建 | 新模块语言 |
+|------|------|------|-----------|
+| `star-yi` | [Star-yb/Star-Yi](https://github.com/Star-yb/Star-Yi) | Maven | Java |
+| `star-yi-arc` | [Star-yb/Star-Yi-Arc](https://github.com/Star-yb/Star-Yi-Arc) | Gradle (Kotlin DSL) | Kotlin |
 
----
+创建一个项目分四步：
 
-## 能做什么
+1. **下载**：`git clone --depth 1` 指定分支；没有 git 或克隆失败时改用 GitHub zip 下载。仓库地址也可以是本机目录（本机 git 仓库只取已提交内容）。
+2. **改名**：只改项目坐标，骨架模块名、包根 `com.star`、启动类都不动。
+   - Maven：父 POM 的 `artifactId` / `groupId` / `version` / `<name>`，以及各子模块 `<parent>` 和内部依赖的坐标
+   - Gradle：`rootProject.name`、根 `build.gradle.kts` 的 `group` / `version` / `description`
+3. **落地**：删掉模板的 `.git`，建好应用目录（默认 `apps/`），写入 `.star-yi/project.yaml` 和根目录脚本 `star-yi.cmd` / `star-yi.sh`。
+4. 可选 `git init`。
 
-| 能力 | 说明 |
-|------|------|
-| **创建新项目** | 从模板复制完整工程，替换占位符，生成父 POM、`yi-common`、`yi-admin`、`yi-demo` 和空 `apps/` |
-| **添加业务模块** | 在已有项目中创建 `apps/<module>`，自动改父 POM、`dependencyManagement` 和 `yi-admin` 依赖 |
-| **删除业务模块** | 删除模块目录，并清理三处 POM 引用 |
-| **项目专用脚本** | 创建项目时自动生成 `star-yi-project-tool`，后续在该仓库内直接增删模块 |
-| **交互 / 命令行双模式** | 无参数启动进入问答菜单；带参数可脚本化、可进 CI |
-| **编译校验** | 添加模块后默认执行 `mvn compile -pl apps/<module> -am` |
-
-> 规划中：`add crud`（按 `yi-demo` 金标准生成单表 CRUD 五层代码），当前版本尚未实现。
+之后在项目里用 `star-yi.cmd add-app` / `remove-app` 增删业务模块，构建文件自动登记，`yi-admin` 自动依赖。
 
 ---
 
-## 两种使用方式
-
-```text
-                  ┌─────────────────────┐
-                  │    star-yi-cli      │
-                  └──────────┬──────────┘
-           无参数 / interactive        带子命令
-                    │                    │
-                    ▼                    ▼
-            交互式问答菜单          new / add / remove / tool
-            （推荐日常使用）         （适合脚本与 CI）
-```
-
-### 1. 交互式问答（推荐）
-
-直接运行即可，无需记参数：
+## 快速开始
 
 ```powershell
 go build -o star-yi-cli.exe .
-.\star-yi-cli.exe
+.\star-yi-cli.exe          # 打开本机页面
 ```
+
+不带参数运行会在浏览器打开一个本机页面（只监听 `127.0.0.1`，带访问令牌）。关掉页面后创建器会自动退出，也可以点右上角「退出」。
+
+页面有两个标签：
+
+- **创建项目**：选版本，填父目录、项目名、展示名、groupId、版本；「高级」里可以临时换仓库、分支、应用目录。创建完成后显示日志、打开文件夹按钮和下一步命令。
+- **版本设置**：改每个版本的仓库地址、分支、构建方式、新模块语言、默认应用目录和默认坐标；可以「检查仓库」，可以新增自定义版本，内置版本可恢复出厂设置。
+
+同样的事都能用命令行完成：
+
+```powershell
+# 创建 Java / Maven 版
+star-yi-cli new -e star-yi -p D:\work -n my-platform --display-name "我的平台" --group-id com.acme
+
+# 创建 Kotlin / Gradle 版，业务模块放在 modules/biz
+star-yi-cli new -e star-yi-arc -p D:\work -n my-arc --apps-dir modules/biz
+```
+
+---
+
+## 在项目里增删应用
+
+创建出来的项目根目录：
 
 ```text
-╔══════════════════════════════════════╗
-║     Star-Yi 项目创建器 (交互模式)     ║
-╚══════════════════════════════════════╝
-
-请选择要执行的操作：
-  1) 创建新项目 (new)
-  2) 添加 apps 业务模块 (add app)
-  3) 删除 apps 业务模块 (remove app)
-  4) 退出
+my-platform/
+├── .star-yi/project.yaml   # 版本、构建方式、应用目录……增删应用按这里来
+├── star-yi.cmd             # Windows 入口
+├── star-yi.sh              # macOS / Linux 入口
+├── apps/                   # 业务模块
+├── yi-admin/  yi-common/  yi-demo/ ...
 ```
-
-- **创建新项目**：只问父目录 + 项目名；生成路径为 `父目录\项目名`。父目录留空 = 当前目录。目录已存在且非空时才会询问是否覆盖。
-- **添加模块**：问项目根目录 + 模块名 + 包后缀（默认 `xxx`）。根目录留空时，会在当前目录及一级子目录中查找可用的 Star-Yi 项目。
-- **删除模块**：同样自动定位项目根目录，删除目录并清理 POM。
-- 操作结束后可返回主菜单继续其它任务。
-
-将 `star-yi-cli.exe` 与 `templates/` 放在同一目录时，交互模式会自动识别默认模板。查找顺序：
-
-```text
-exe 同目录/templates/Star-Yi.zip  →  templates/Star-Yi  →  源码仓库 templates/...
-```
-
-zip 与文件夹同时存在时，**优先使用 zip**。
-
-### 2. 命令行参数
-
-#### 创建新项目
 
 ```powershell
-star-yi-cli.exe new `
-  --template .\templates\Star-Yi `
-  --target D:\work\my-app `
-  --artifact-id My-Platform `
-  --name "我的平台" `
-  --group-id com.star
+.\star-yi.cmd add-app -m order-service                      # 新增模块，包 com.star.orderservice
+.\star-yi.cmd add-app -m crm --package crm --api-path /crm  # 自定义包和接口前缀
+.\star-yi.cmd add-app -m report --depends order-service     # 依赖同项目里的其它应用
+.\star-yi.cmd list                                          # 列出应用
+.\star-yi.cmd remove-app -m report                          # 删除（会确认）
+.\star-yi.cmd                                               # 不带参数：问答菜单
 ```
 
-| 参数 | 必填 | 默认 | 说明 |
-|------|------|------|------|
-| `--template` | 是 | — | 模板路径（文件夹或 `.zip`） |
-| `--target` | 是 | — | 目标项目根目录 |
-| `--artifact-id` | 是 | — | Maven `artifactId` / 项目坐标 |
-| `--group-id` | 否 | `com.star` | Maven `groupId` |
-| `--version` | 否 | `0.0.1-SNAPSHOT` | 项目版本 |
-| `--name` | 否 | 同 artifact-id | 父 POM `<name>` 展示名 |
-| `--apps-prefix` | 否 | 空 | 业务模块命名习惯（仅记录） |
-| `--api-prefix` | 否 | 空 | 默认 REST 前缀 |
-| `--sql-subdir` | 否 | 空 | SQL 相对 `sql/` 的子目录 |
-| `--force` | 否 | false | 目标非空时强制覆盖 |
+```bash
+./star-yi.sh add-app -m order-service
+```
 
-#### 添加 apps 业务模块
+**add-app** 做的事：
+
+| | Maven（Star-Yi） | Gradle（Star-Yi-Arc） |
+|---|---|---|
+| 生成模块 | `pom.xml`（依赖 `yi-common`）+ Java 包目录 + `src/main/dto` | `build.gradle.kts`（依赖 `yi-common`）+ Kotlin 包目录 + `src/main/dto` |
+| 登记 | 父 POM `<modules>` 和 `<dependencyManagement>` | `settings.gradle.kts` 的 `include` + `projectDir` |
+| 接入启动模块 | `yi-admin/pom.xml` 加依赖 | `yi-admin/build.gradle.kts` 加 `project(":id")` |
+| 编译检查 | `mvn -q compile -pl apps/<id> -am` | `gradle --no-daemon :<id>:compileKotlin` |
+
+每个新模块带一个 `GET <api-path>/ping` 示例接口和 README。编译检查失败不会回滚，方便直接看报错修；没装 Maven / Gradle 时跳过检查，也可以用 `--skip-verify` 跳过。
+
+**remove-app** 删目录并清掉上面所有登记。如果别的应用依赖它，会拒绝删除并列出依赖方，确认要删时加 `--force`。
+
+脚本按这个顺序找创建器：
+
+1. 环境变量 `STAR_YI_CLI`
+2. `%APPDATA%\star-yi-cli\cli-path.txt`（每次运行 `star-yi-cli` 都会记录自己的位置）
+3. `PATH` 里的 `star-yi-cli`
+
+所以只要在这台机器上运行过一次创建器，项目里的脚本就能用，不需要把 exe 复制进项目。
+
+---
+
+## 配置
+
+版本配置保存在 `%AppData%\star-yi-cli\config.yaml`（macOS 为 `~/Library/Application Support/star-yi-cli/`，Linux 为 `~/.config/star-yi-cli/`）。页面「版本设置」和下面的命令改的是同一个文件：
 
 ```powershell
-cd D:\work\my-app
-star-yi-cli.exe add app `
-  --module-id order-service `
-  --package-suffix order `
-  --api-path /orders
+star-yi-cli config show                                  # 查看
+star-yi-cli config set --edition star-yi --branch dev    # 改分支
+star-yi-cli config set --edition star-yi --repo D:\JAVA_File\springboot_web_file\Star-Yi
+star-yi-cli config check star-yi-arc                     # 检查仓库和分支
+star-yi-cli config reset star-yi                         # 恢复内置默认
+star-yi-cli config path                                  # 配置文件位置
 ```
 
-自动完成：创建 `apps/order-service` 目录与 `pom.xml`、Java 包根、`src/main/dto`；注册父 `<modules>` 与 `<dependencyManagement>`；在 `yi-admin/pom.xml` 加入依赖；默认执行 Maven 编译验证。
+**配置只影响之后新建的项目。** 已有项目按自己的 `.star-yi/project.yaml` 增删应用；如果要换应用目录，改这个文件（或 `star-yi-cli init --apps-dir`）即可。
 
-#### 删除 apps 业务模块
+`new` 的 `--repo` / `--branch` / `--apps-dir` 只对这一次创建生效，不写回配置。
+
+---
+
+## 已有的老项目
+
+用旧版创建器生成的项目没有 `.star-yi/`，可以补上：
 
 ```powershell
-star-yi-cli.exe remove app --module-id order-service
+cd D:\work\old-project
+star-yi-cli init --project .                 # 根据构建文件识别版本，写入 project.yaml 和脚本
+star-yi-cli init --project . --apps-dir apps --force
 ```
 
-1. 删除 `apps/order-service` 目录  
-2. 从父 `pom.xml` 的 `<modules>` 移除  
-3. 从父 `pom.xml` 的 `<dependencyManagement>` 移除  
-4. 从 `yi-admin/pom.xml` 的 `<dependencies>` 移除  
-
-#### 生成项目专用脚本
-
-```powershell
-star-yi-cli.exe tool init --project .
-star-yi-cli.exe tool init --project . --all-platform
-```
-
-`new` 创建项目时会自动生成当前系统对应的脚本；`tool init` 用于手动重建或覆盖。
+之后旧的 `star-yi-project-tool.*` 和 `common-core/` 可以删掉。
 
 ---
 
@@ -159,188 +151,55 @@ star-yi-cli.exe tool init --project . --all-platform
 
 | 命令 | 说明 |
 |------|------|
-| `star-yi-cli` / `interactive` / `-i` | 交互式问答菜单 |
-| `new` | 从模板生成完整工程 |
-| `add app` | 添加 `apps/*` 业务模块并改 POM |
-| `remove app` | 删除 `apps/*` 并清理 POM |
-| `tool init` | 生成当前项目专用跨平台脚本 |
-| `--help` | 查看帮助 |
+| `star-yi-cli` / `star-yi-cli ui` | 打开本机页面（`ui --port 8600 --no-browser` 可固定端口、不自动开浏览器） |
+| `new` | 从版本仓库创建项目 |
+| `app add` / `app remove` / `app list` | 增删查应用（项目脚本就是转调这里，`--project` 指定项目根，不传则从当前目录往上找） |
+| `config path \| show \| set \| reset \| check` | 版本配置 |
+| `init` | 给已有项目写入 `.star-yi/project.yaml` 和脚本 |
+
+`new` 参数：
+
+| 参数 | 默认 | 说明 |
+|------|------|------|
+| `-e, --edition` | `star-yi` | 版本 ID |
+| `-p, --parent` | 当前目录 | 父目录，项目建在 `父目录/项目名` |
+| `-n, --name` | 交互询问 | 项目名，同时是 `artifactId` / `rootProject.name` |
+| `--display-name` | 同项目名 | Maven `<name>` / Gradle `description` |
+| `--group-id` / `--version` | 取版本配置 | 项目坐标 |
+| `--repo` / `--branch` / `--apps-dir` | 取版本配置 | 仅本次生效 |
+| `--force` | false | 目标目录非空时覆盖同名文件 |
+| `--git-init` | false | 创建后 `git init` |
 
 ---
 
-## 生成后的工程结构
-
-```text
-{projectArtifactId}/
-├── pom.xml                      # 父工程（packaging=pom）
-├── yi-common/                   # 公共能力：CRUD 基类、RBAC 实体、工具
-├── yi-demo/                     # 标准 CRUD 示例（DemoArticle）
-├── yi-admin/                    # 唯一启动模块  mainClass=com.star.AppLication
-├── apps/                        # 业务域模块（创建器按需增删）
-│   ├── order-service/
-│   └── ...
-├── sql/
-├── star-yi-project-tool.cmd     # 项目入口脚本（根目录只留这一个）
-└── common-core/
-    └── star-yi-cli.exe          # CLI 本体（创建时自动复制）
-```
-
-```mermaid
-flowchart TB
-  subgraph entry [启动入口]
-    admin["yi-admin<br/>com.star.AppLication"]
-  end
-  subgraph fixed [骨架固定模块]
-    common["yi-common"]
-    demo["yi-demo"]
-  end
-  subgraph biz [按项目扩展]
-    apps["apps/* 业务模块"]
-  end
-  admin --> common
-  admin --> demo
-  admin --> apps
-  demo --> common
-  apps --> common
-```
-
-**依赖约定**
-
-| 模块 | 依赖谁 | 被谁依赖 |
-|------|--------|----------|
-| `yi-common` | 父 POM | `yi-demo`、`yi-admin`、全部 `apps/*` |
-| `yi-demo` | `yi-common` | `yi-admin` |
-| `apps/{任意}` | 至少 `yi-common`，可再依赖同仓库其它 apps | `yi-admin` |
-| `yi-admin` | `yi-common` + `yi-demo` + 需上线的全部 apps | 无（唯一可执行入口） |
-
-骨架模块名、包根 `com.star`、启动类 **不会**随业务项目改名。父工程 `artifactId` / `<name>` 以及 `apps/*` 命名由每次创建时的参数决定。
-
----
-
-## 内置模板技术栈
-
-| 项 | 版本 / 说明 |
-|----|-------------|
-| Java | 21 |
-| Spring Boot | 4.0.3 |
-| Jimmer | 0.10.6 |
-| Sa-Token | 1.45.0 |
-| MySQL | 8.2.0 |
-| springdoc-openapi | 3.0.3（仅 `yi-admin` 引入 UI） |
-| 管理端 | Thymeleaf SSR + RBAC（用户 / 角色 / 权限） |
-
-平台自带能力（新项目开箱即有，不由业务 apps 生成）：
-
-- 登录 / 登出 / Token：`/auth/**`
-- 用户、角色、权限管理
-- 管理后台页面：`/admin/**`
-- OpenAPI / Swagger
-- 全局异常、分页、通用 CRUD 五层封装
-
-默认启动端口见 `yi-admin` 的 `application.yaml`（模板为 **8500**）。
-
----
-
-## 项目专用脚本
-
-创建完成后，根目录只保留入口脚本，CLI 放到 `common-core/`，避免污染工程根：
-
-```text
-项目根/
-  pom.xml
-  star-yi-project-tool.cmd    ← 入口
-  common-core/
-    star-yi-cli.exe           ← CLI 本体
-```
-
-脚本会把当前项目根固定为 `--project`，后续不必再传路径：
-
-```powershell
-star-yi-project-tool.cmd add-app --module-id ed-pp --package-suffix aaa
-star-yi-project-tool.cmd remove-app --module-id ed-pp
-```
-
-```bash
-./star-yi-project-tool.sh add-app --module-id ed-pp --package-suffix aaa
-./star-yi-project-tool.sh remove-app --module-id ed-pp
-```
-
-无参数运行脚本时，进入问答菜单（1 = add-app，2 = remove-app）。
-
-| 脚本 | 平台 |
-|------|------|
-| `star-yi-project-tool.cmd` | Windows CMD（默认） |
-| `star-yi-project-tool.ps1` | Windows PowerShell |
-| `star-yi-project-tool.sh` | macOS / Linux Bash |
-
-`--all-platform` 可一次生成全部三种。脚本优先使用 `common-core/star-yi-cli.exe`；若要改用其它 CLI，可设置环境变量 `STAR_YI_CLI`。
-
-```powershell
-star-yi-cli.exe tool init --project . --cli star-yi-cli.exe --force
-```
-
----
-
-## 模板占位符
-
-`new` 会遍历模板中的文本文件并替换下列占位符（不处理 Maven 的 `${...}`）：
-
-| 占位符 | CLI 参数 |
-|--------|----------|
-| `{projectArtifactId}` | `--artifact-id` |
-| `{projectName}` | `--name` |
-| `{groupId}` | `--group-id` |
-| `{version}` | `--version` |
-| `{appsModulePrefix}` | `--apps-prefix` |
-| `{defaultApiPrefix}` | `--api-prefix` |
-| `{sqlSubDir}` | `--sql-subdir` |
-
-**不替换**：Java 包名 `com.star.**`、`mainClass`、第三方依赖坐标。
-
----
-
-## 构建本工具
-
-```powershell
-cd star-yi-cli
-go mod tidy
-go build -o star-yi-cli.exe .
-```
-
-体积优化：
+## 开发
 
 ```powershell
 go build -ldflags="-s -w" -o star-yi-cli.exe .
-```
-
-测试：
-
-```bash
+go vet ./...
 go test ./...
 ```
 
+```text
+main.go
+cmd/                 cobra 命令：root(ui) new app config init
+internal/
+  config/            版本配置读写
+  source/            仓库下载：git clone / GitHub zip / 本机目录
+  create/            创建流程：下载 → 改名 → 写元数据和脚本 → 落地
+  build/             构建适配：maven.go（保留格式的 POM 编辑）、gradle.go（Kotlin DSL 行编辑）
+  app/               应用模块增删查、模块源码生成
+  meta/              .star-yi/project.yaml，老项目自动识别
+  scripts/           star-yi.cmd / star-yi.sh
+  xmledit/           保留缩进、换行、注释的 XML 编辑
+  names/             项目名、模块名、包名等校验
+  prompt/            终端问答
+  ui/                本机页面服务，index.html 编译进 exe
+```
+
+新增一种构建方式时，在 `internal/build` 里实现 `Adapter` 接口并在 `For()` 注册即可，创建流程和页面不用动。
+
 ---
-
-## 生成后如何启动业务项目
-
-```bash
-cd <target>
-mvn clean compile
-mvn -pl yi-admin spring-boot:run
-```
-
-- 管理端：`http://localhost:8500`
-- Swagger：`/swagger-ui.html`
-
-删除模块后建议再编译一次，确认无残留引用：
-
-```bash
-mvn clean compile
-```
-
-```powershell
-Select-String -Path .\* -Pattern "order-service" -Recurse
-```
 
 ## 最后
 

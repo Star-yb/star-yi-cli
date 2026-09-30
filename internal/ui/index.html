@@ -1,0 +1,557 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Star-Yi 创建器</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --line: #e3e6eb; --line-strong: #cfd4dc;
+    --text: #1f2328; --muted: #656d76; --faint: #8c959f;
+    --accent: #2f6feb; --accent-weak: #e8f0fe; --on-accent: #ffffff;
+    --ok: #1a7f37; --ok-weak: #e6f4ea; --warn: #9a6700; --warn-weak: #fff8e1;
+    --err: #cf222e; --err-weak: #ffebe9; --code: #f1f3f5;
+    --radius: 8px;
+    font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1117; --panel: #161b22; --line: #2b313a; --line-strong: #3d444d;
+      --text: #e6edf3; --muted: #9198a1; --faint: #6e7681;
+      --accent: #4c8dff; --accent-weak: #1b2a45; --on-accent: #ffffff;
+      --ok: #3fb950; --ok-weak: #12261a; --warn: #d29922; --warn-weak: #2a2110;
+      --err: #f85149; --err-weak: #2d1416; --code: #1f252d;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.55; }
+  header { background: var(--panel); border-bottom: 1px solid var(--line); }
+  .bar { max-width: 1040px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; gap: 24px; height: 56px; }
+  .brand { font-weight: 600; font-size: 16px; }
+  .brand small { color: var(--faint); font-weight: 400; margin-left: 6px; font-size: 12px; }
+  nav { display: flex; gap: 4px; flex: 1; }
+  nav button { background: none; border: none; color: var(--muted); padding: 8px 12px; border-radius: 6px; font: inherit; cursor: pointer; }
+  nav button.active { color: var(--text); background: var(--bg); font-weight: 600; }
+  nav button:hover { color: var(--text); }
+  main { max-width: 1040px; margin: 0 auto; padding: 24px; }
+  h2 { font-size: 18px; margin: 0 0 4px; }
+  h3 { font-size: 14px; margin: 0 0 12px; }
+  p.lead { color: var(--muted); margin: 0 0 20px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; }
+  .stack { display: flex; flex-direction: column; gap: 16px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  .editions { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+  .edition { border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; cursor: pointer; background: var(--panel); text-align: left; font: inherit; color: inherit; }
+  .edition:hover { border-color: var(--line-strong); }
+  .edition.active { border-color: var(--accent); background: var(--accent-weak); }
+  .edition .t { font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .edition .d { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .edition .r { color: var(--faint); font-size: 12px; margin-top: 8px; word-break: break-all; font-family: ui-monospace, Consolas, monospace; }
+  .tag { font-size: 11px; font-weight: 500; padding: 1px 6px; border-radius: 4px; background: var(--code); color: var(--muted); }
+  label.field { display: flex; flex-direction: column; gap: 6px; }
+  label.field > span { font-weight: 500; font-size: 13px; }
+  label.field > em { font-style: normal; color: var(--faint); font-size: 12px; }
+  input[type=text], select { width: 100%; padding: 7px 10px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--panel); color: var(--text); font: inherit; }
+  input[type=text]:focus, select:focus { outline: 2px solid var(--accent-weak); border-color: var(--accent); }
+  input[type=text]::placeholder { color: var(--faint); }
+  input.mono { font-family: ui-monospace, Consolas, monospace; font-size: 13px; }
+  .inline { display: flex; gap: 8px; }
+  .inline input { flex: 1; }
+  .check { display: flex; align-items: center; gap: 8px; color: var(--text); }
+  button.btn { padding: 7px 14px; border-radius: 6px; border: 1px solid var(--line-strong); background: var(--panel); color: var(--text); font: inherit; cursor: pointer; white-space: nowrap; }
+  button.btn:hover:not(:disabled) { border-color: var(--faint); }
+  button.btn.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); font-weight: 600; }
+  button.btn.danger { color: var(--err); }
+  button.btn:disabled { opacity: .55; cursor: default; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .spacer { flex: 1; }
+  .preview { font-family: ui-monospace, Consolas, monospace; font-size: 13px; background: var(--code); padding: 8px 12px; border-radius: 6px; word-break: break-all; }
+  details summary { cursor: pointer; color: var(--muted); user-select: none; }
+  details[open] summary { margin-bottom: 14px; }
+  .notice { border-radius: 6px; padding: 10px 14px; font-size: 13px; }
+  .notice.ok { background: var(--ok-weak); color: var(--ok); }
+  .notice.warn { background: var(--warn-weak); color: var(--warn); }
+  .notice.err { background: var(--err-weak); color: var(--err); white-space: pre-wrap; }
+  .notice.info { background: var(--accent-weak); color: var(--text); }
+  .log { font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; background: var(--code); border-radius: 6px; padding: 10px 12px; max-height: 260px; overflow: auto; white-space: pre-wrap; word-break: break-all; }
+  .log div::before { content: "· "; color: var(--faint); }
+  pre.cmd { margin: 0; font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; background: var(--code); border-radius: 6px; padding: 10px 12px; overflow: auto; }
+  .settings { display: grid; grid-template-columns: 220px 1fr; gap: 20px; align-items: start; }
+  .elist { display: flex; flex-direction: column; gap: 4px; }
+  .elist button { text-align: left; background: none; border: 1px solid transparent; border-radius: 6px; padding: 8px 10px; font: inherit; color: var(--text); cursor: pointer; }
+  .elist button.active { background: var(--panel); border-color: var(--line); font-weight: 600; }
+  .elist button small { display: block; color: var(--faint); font-weight: 400; font-size: 12px; }
+  .muted { color: var(--muted); }
+  .faint { color: var(--faint); font-size: 12px; }
+  code { font-family: ui-monospace, Consolas, monospace; background: var(--code); padding: 1px 5px; border-radius: 4px; font-size: 12.5px; }
+  .hidden { display: none !important; }
+  .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--warn); margin-left: 6px; vertical-align: middle; }
+  #offline { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; z-index: 10; }
+  #offline .panel { max-width: 420px; }
+  @media (max-width: 760px) { .grid2, .grid3, .settings { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="brand">Star-Yi 创建器<small id="ver"></small></div>
+    <nav>
+      <button data-tab="create" class="active">创建项目</button>
+      <button data-tab="settings">版本设置<span id="dirtyDot" class="dot hidden"></span></button>
+    </nav>
+    <button class="btn" id="quitBtn" title="关闭创建器进程">退出</button>
+  </div>
+</header>
+
+<main>
+  <!-- 创建项目 -->
+  <section id="tab-create" class="stack">
+    <div>
+      <h2>创建项目</h2>
+      <p class="lead">从版本对应的仓库下载骨架，改成新项目的名字，并在项目根目录留下 <code>star-yi.cmd</code> 用来增删应用模块。</p>
+    </div>
+
+    <div class="panel stack">
+      <h3>1. 选择版本</h3>
+      <div class="editions" id="editionCards"></div>
+      <div id="gitWarn" class="notice warn hidden">本机没有找到 git。GitHub 仓库会改为下载压缩包，其他远程地址无法下载。</div>
+    </div>
+
+    <div class="panel stack">
+      <h3>2. 填写项目</h3>
+      <label class="field">
+        <span>创建位置（父目录）</span>
+        <div class="inline">
+          <input type="text" id="parentDir" class="mono">
+          <button class="btn" id="pickDir">选择…</button>
+        </div>
+      </label>
+      <div class="grid2">
+        <label class="field">
+          <span>项目名</span>
+          <input type="text" id="name" placeholder="my-platform" class="mono">
+          <em>文件夹名，同时是 Maven artifactId / Gradle rootProject.name</em>
+        </label>
+        <label class="field">
+          <span>展示名</span>
+          <input type="text" id="displayName" placeholder="默认同项目名">
+          <em>写进 Maven 的 &lt;name&gt; 或 Gradle 的 description</em>
+        </label>
+      </div>
+      <div class="grid2">
+        <label class="field"><span>groupId</span><input type="text" id="groupId" class="mono"></label>
+        <label class="field"><span>版本</span><input type="text" id="version" class="mono"></label>
+      </div>
+
+      <details id="advanced">
+        <summary>本次创建的其他选项</summary>
+        <div class="stack">
+          <div class="grid3">
+            <label class="field" style="grid-column: span 2"><span>仓库地址</span><input type="text" id="repo" class="mono"><em>只对这一次生效。要长期修改，去「版本设置」。</em></label>
+            <label class="field"><span>分支</span><input type="text" id="branch" class="mono" placeholder="默认分支"></label>
+          </div>
+          <label class="field"><span>应用目录</span><input type="text" id="appsDir" class="mono"><em>新项目里业务模块所在的文件夹，会写进项目的 .star-yi/project.yaml</em></label>
+          <div class="row">
+            <label class="check"><input type="checkbox" id="force"> 目标目录已存在且不为空时覆盖同名文件</label>
+          </div>
+          <div class="row">
+            <label class="check"><input type="checkbox" id="gitInit"> 创建后执行 git init</label>
+          </div>
+        </div>
+      </details>
+
+      <div>
+        <div class="faint" style="margin-bottom:6px">将创建到</div>
+        <div class="preview" id="targetPreview">—</div>
+      </div>
+      <div class="row">
+        <button class="btn primary" id="createBtn">创建项目</button>
+        <span class="muted" id="createHint"></span>
+      </div>
+    </div>
+
+    <div class="panel stack hidden" id="resultPanel">
+      <h3 id="resultTitle">创建过程</h3>
+      <div id="resultNotice"></div>
+      <div class="log" id="log"></div>
+      <div id="nextSteps" class="stack hidden">
+        <div class="row">
+          <button class="btn" id="openDir">打开项目文件夹</button>
+        </div>
+        <div>
+          <div class="faint" style="margin-bottom:6px">在项目里添加、删除应用模块</div>
+          <pre class="cmd" id="cmdHint"></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 版本设置 -->
+  <section id="tab-settings" class="stack hidden">
+    <div>
+      <h2>版本设置</h2>
+      <p class="lead">每个版本从哪个仓库下载，新项目默认用什么目录和坐标。改动只影响之后新建的项目；已有项目按自己的 <code>.star-yi/project.yaml</code> 增删应用。</p>
+    </div>
+    <div class="settings">
+      <div class="stack">
+        <div class="elist" id="editionList"></div>
+        <button class="btn" id="addEdition">新增版本</button>
+      </div>
+      <div class="panel stack" id="editionForm">
+        <div class="grid2">
+          <label class="field"><span>名称</span><input type="text" data-k="title"></label>
+          <label class="field"><span>ID</span><input type="text" data-k="id" class="mono"><em id="idHint">命令行用 --edition 指定</em></label>
+        </div>
+        <label class="field"><span>说明</span><input type="text" data-k="description"></label>
+        <div class="grid3">
+          <label class="field" style="grid-column: span 2">
+            <span>仓库地址</span><input type="text" data-k="repo" class="mono">
+            <em>GitHub 地址，或本机目录。本机 git 仓库只取已提交的内容。</em>
+          </label>
+          <label class="field"><span>分支</span><input type="text" data-k="branch" class="mono" placeholder="默认分支"></label>
+        </div>
+        <div class="row">
+          <button class="btn" id="checkRepo">检查仓库</button>
+          <span id="checkResult" class="muted"></span>
+        </div>
+        <div class="grid2">
+          <label class="field">
+            <span>构建方式</span>
+            <select data-k="build"><option value="maven">Maven</option><option value="gradle">Gradle</option></select>
+            <em>决定下载后怎么改名，增删应用时改哪些构建文件</em>
+          </label>
+          <label class="field">
+            <span>新模块的语言</span>
+            <select data-k="language"><option value="java">Java</option><option value="kotlin">Kotlin</option></select>
+            <em>添加应用时生成的源码目录和示例接口</em>
+          </label>
+        </div>
+        <label class="field">
+          <span>应用目录</span><input type="text" data-k="appsDir" class="mono">
+          <em>相对项目根目录，例如 apps 或 modules/biz</em>
+        </label>
+        <div class="grid2">
+          <label class="field"><span>默认 groupId</span><input type="text" data-k="groupId" class="mono"></label>
+          <label class="field"><span>默认版本</span><input type="text" data-k="version" class="mono"></label>
+        </div>
+        <div class="row">
+          <button class="btn" id="resetEdition">恢复出厂设置</button>
+          <button class="btn danger" id="deleteEdition">删除这个版本</button>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <button class="btn primary" id="saveSettings">保存设置</button>
+      <button class="btn" id="discardSettings">放弃修改</button>
+      <span id="saveResult" class="muted"></span>
+      <span class="spacer"></span>
+      <span class="faint">配置文件 <code id="configPath"></code></span>
+    </div>
+  </section>
+</main>
+
+<div id="offline" class="hidden">
+  <div class="panel stack">
+    <h3>创建器已经退出</h3>
+    <p class="muted" style="margin:0">这个页面已经连不上创建器。重新运行 <code>star-yi-cli</code> 会打开一个新页面。</p>
+  </div>
+</div>
+
+<script>
+const TOKEN = "__STAR_YI_TOKEN__";
+const $ = (id) => document.getElementById(id);
+let S = null;            // 服务端状态
+let draft = [];          // 版本设置草稿
+let selected = 0;        // 设置页选中的版本
+let dirty = false;
+let editionId = null;    // 创建页选中的版本
+let lastTarget = "";
+
+async function api(path, body) {
+  let res;
+  try {
+    res = await fetch(path, {
+      method: body === undefined ? "GET" : "POST",
+      headers: { "X-Star-Yi-Token": TOKEN, "Content-Type": "application/json" },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  } catch (e) {
+    showOffline();
+    throw new Error("创建器没有响应，可能已经退出");
+  }
+  let j;
+  try { j = await res.json(); } catch (e) { throw new Error("创建器返回了无法识别的内容（HTTP " + res.status + "）"); }
+  if (!j.ok) { const err = new Error(j.error); err.data = j.data; throw err; }
+  return j.data;
+}
+
+function showOffline() { $("offline").classList.remove("hidden"); }
+function esc(s) { return String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+function clone(v) { return JSON.parse(JSON.stringify(v)); }
+function edition(id) { return S.editions.find(e => e.id === id); }
+
+// ---------- 标签页 ----------
+document.querySelectorAll("nav button").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll("nav button").forEach(x => x.classList.toggle("active", x === b));
+  $("tab-create").classList.toggle("hidden", b.dataset.tab !== "create");
+  $("tab-settings").classList.toggle("hidden", b.dataset.tab !== "settings");
+}));
+
+// ---------- 创建项目 ----------
+function renderEditionCards() {
+  const box = $("editionCards");
+  box.innerHTML = "";
+  for (const e of S.editions) {
+    const b = document.createElement("button");
+    b.className = "edition" + (e.id === editionId ? " active" : "");
+    b.innerHTML = `<div class="t">${esc(e.title)}<span class="tag">${esc(e.build)} · ${esc(e.language)}</span></div>` +
+      `<div class="d">${esc(e.description || "")}</div>` +
+      `<div class="r">${esc(e.repo)}${e.branch ? " @ " + esc(e.branch) : ""}</div>`;
+    b.addEventListener("click", () => selectEdition(e.id));
+    box.appendChild(b);
+  }
+}
+
+function selectEdition(id) {
+  editionId = id;
+  const e = edition(id);
+  $("groupId").value = e.groupId;
+  $("version").value = e.version;
+  $("repo").value = e.repo;
+  $("branch").value = e.branch;
+  $("appsDir").value = e.appsDir;
+  localStorage.setItem("star-yi.edition", id);
+  renderEditionCards();
+  updatePreview();
+}
+
+function joinPath(dir, name) {
+  if (!dir) return name;
+  const sep = S.pathSep;
+  return dir.endsWith("\\") || dir.endsWith("/") ? dir + name : dir + sep + name;
+}
+
+function updatePreview() {
+  const name = $("name").value.trim();
+  const dir = $("parentDir").value.trim();
+  $("targetPreview").textContent = name ? joinPath(dir || S.cwd, name) : "—";
+  $("displayName").placeholder = name || "默认同项目名";
+}
+["name", "parentDir"].forEach(id => $(id).addEventListener("input", updatePreview));
+
+$("pickDir").addEventListener("click", async () => {
+  const btn = $("pickDir");
+  btn.disabled = true;
+  try {
+    const p = await api("/api/pick-dir", { initial: $("parentDir").value.trim() });
+    if (p) { $("parentDir").value = p; updatePreview(); }
+  } catch (e) { alert(e.message); }
+  finally { btn.disabled = false; }
+});
+
+$("createBtn").addEventListener("click", async () => {
+  const name = $("name").value.trim();
+  if (!name) { $("name").focus(); $("createHint").textContent = "先填项目名"; return; }
+  const e = edition(editionId);
+  const body = {
+    edition: editionId,
+    parentDir: $("parentDir").value.trim(),
+    name,
+    displayName: $("displayName").value.trim(),
+    groupId: $("groupId").value.trim(),
+    version: $("version").value.trim(),
+    repo: $("repo").value.trim(),
+    branch: $("branch").value.trim(),
+    appsDir: $("appsDir").value.trim(),
+    force: $("force").checked,
+    gitInit: $("gitInit").checked,
+  };
+  localStorage.setItem("star-yi.parentDir", body.parentDir);
+
+  const btn = $("createBtn");
+  btn.disabled = true;
+  $("createHint").textContent = "正在下载并改名，仓库较大时需要一会儿…";
+  $("resultPanel").classList.remove("hidden");
+  $("resultTitle").textContent = "创建过程";
+  $("resultNotice").innerHTML = "";
+  $("log").innerHTML = "<div>下载 " + esc(body.repo || e.repo) + "</div>";
+  $("nextSteps").classList.add("hidden");
+  try {
+    const data = await api("/api/create", body);
+    renderLogs(data.logs);
+    const r = data.result;
+    lastTarget = r.target;
+    $("resultTitle").textContent = "创建完成";
+    $("resultNotice").innerHTML = `<div class="notice ok">已创建 <b>${esc(r.displayName)}</b>，坐标 ${esc(r.groupId)}:${esc(r.name)}:${esc(r.version)}</div>`;
+    $("cmdHint").textContent =
+      `cd "${r.target}"\n` +
+      `.\\star-yi.cmd add-app --module-id order-service\n` +
+      `.\\star-yi.cmd remove-app --module-id order-service\n` +
+      `.\\star-yi.cmd            # 不带参数进入菜单\n\n` +
+      `# macOS / Linux 用 ./star-yi.sh，参数相同\n` +
+      `# 业务模块放在 ${r.appsDir}/ 下，构建方式 ${r.build}`;
+    $("nextSteps").classList.remove("hidden");
+    $("createHint").textContent = "";
+  } catch (err) {
+    if (err.data && err.data.logs) renderLogs(err.data.logs);
+    $("resultTitle").textContent = "创建失败";
+    $("resultNotice").innerHTML = `<div class="notice err">${esc(err.message)}</div>`;
+    $("createHint").textContent = "";
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+function renderLogs(lines) {
+  $("log").innerHTML = (lines || []).map(l => "<div>" + esc(l) + "</div>").join("");
+}
+
+$("openDir").addEventListener("click", () => api("/api/open-dir", { path: lastTarget }).catch(e => alert(e.message)));
+
+// ---------- 版本设置 ----------
+function setDirty(v) {
+  dirty = v;
+  $("dirtyDot").classList.toggle("hidden", !v);
+  if (v) $("saveResult").textContent = "有未保存的修改";
+}
+
+function renderEditionList() {
+  const box = $("editionList");
+  box.innerHTML = "";
+  draft.forEach((e, i) => {
+    const b = document.createElement("button");
+    b.className = i === selected ? "active" : "";
+    b.innerHTML = esc(e.title || "(未命名)") + `<small>${esc(e.id)}${e.builtIn ? " · 内置" : ""}</small>`;
+    b.addEventListener("click", () => { selected = i; renderEditionList(); renderEditionForm(); });
+    box.appendChild(b);
+  });
+}
+
+function renderEditionForm() {
+  const e = draft[selected];
+  document.querySelectorAll("#editionForm [data-k]").forEach(inp => { inp.value = e[inp.dataset.k] ?? ""; });
+  const idInput = document.querySelector('#editionForm [data-k="id"]');
+  idInput.disabled = !!e.builtIn || !!e._saved;
+  $("idHint").textContent = idInput.disabled ? "命令行用 --edition " + e.id + " 指定" : "小写字母、数字、连字符，保存后不能再改";
+  $("resetEdition").classList.toggle("hidden", !e.builtIn);
+  $("deleteEdition").classList.toggle("hidden", !!e.builtIn);
+  $("checkResult").textContent = "";
+}
+
+document.querySelectorAll("#editionForm [data-k]").forEach(inp => {
+  const ev = inp.tagName === "SELECT" ? "change" : "input";
+  inp.addEventListener(ev, () => {
+    draft[selected][inp.dataset.k] = inp.value;
+    setDirty(true);
+    if (inp.dataset.k === "title" || inp.dataset.k === "id") renderEditionList();
+  });
+});
+
+$("addEdition").addEventListener("click", () => {
+  const base = clone(draft[selected]);
+  let n = 2, id = base.id + "-copy";
+  while (draft.some(e => e.id === id)) id = base.id + "-copy" + (n++);
+  draft.push({ ...base, id, title: base.title + "（副本）", builtIn: false, _saved: false });
+  selected = draft.length - 1;
+  setDirty(true);
+  renderEditionList(); renderEditionForm();
+});
+
+$("deleteEdition").addEventListener("click", () => {
+  const e = draft[selected];
+  if (e.builtIn) return;
+  if (!confirm(`删除版本「${e.title}」？保存后生效。`)) return;
+  draft.splice(selected, 1);
+  selected = Math.max(0, selected - 1);
+  setDirty(true);
+  renderEditionList(); renderEditionForm();
+});
+
+$("resetEdition").addEventListener("click", async () => {
+  const e = draft[selected];
+  try {
+    const d = await api("/api/config/reset", { id: e.id });
+    draft[selected] = { ...d, builtIn: true, _saved: true };
+    setDirty(true);
+    renderEditionList(); renderEditionForm();
+    $("saveResult").textContent = "已恢复为出厂设置，保存后生效";
+  } catch (err) { $("saveResult").textContent = err.message; }
+});
+
+$("checkRepo").addEventListener("click", async () => {
+  const e = draft[selected];
+  const out = $("checkResult");
+  const btn = $("checkRepo");
+  btn.disabled = true;
+  out.style.color = "";
+  out.textContent = "检查中…";
+  try {
+    out.textContent = await api("/api/check", { repo: e.repo, branch: e.branch });
+    out.style.color = "var(--ok)";
+  } catch (err) {
+    out.textContent = err.message;
+    out.style.color = "var(--err)";
+  } finally { btn.disabled = false; }
+});
+
+$("saveSettings").addEventListener("click", async () => {
+  const payload = { editions: draft.map(({ _saved, builtIn, ...rest }) => rest) };
+  try {
+    const eds = await api("/api/config", payload);
+    S.editions = eds;
+    loadDraft();
+    setDirty(false);
+    $("saveResult").style.color = "var(--ok)";
+    $("saveResult").textContent = "已保存";
+    if (!edition(editionId)) editionId = S.editions[0].id;
+    selectEdition(editionId);
+  } catch (err) {
+    $("saveResult").style.color = "var(--err)";
+    $("saveResult").textContent = err.message;
+  }
+});
+
+$("discardSettings").addEventListener("click", () => {
+  loadDraft(); setDirty(false);
+  $("saveResult").style.color = "";
+  $("saveResult").textContent = "已放弃修改";
+});
+
+function loadDraft() {
+  const cur = draft[selected] && draft[selected].id;
+  draft = S.editions.map(e => ({ ...clone(e), _saved: true }));
+  selected = Math.max(0, draft.findIndex(e => e.id === cur));
+  renderEditionList(); renderEditionForm();
+}
+
+// ---------- 退出与心跳 ----------
+$("quitBtn").addEventListener("click", async () => {
+  if (dirty && !confirm("版本设置还没保存，仍然退出？")) return;
+  try { await api("/api/quit", {}); } catch (e) {}
+  showOffline();
+});
+setInterval(() => { api("/api/ping", {}).catch(() => {}); }, 20000);
+window.addEventListener("pagehide", () => { navigator.sendBeacon("/api/bye?t=" + TOKEN); });
+window.addEventListener("beforeunload", (ev) => { if (dirty) { ev.preventDefault(); ev.returnValue = ""; } });
+
+// ---------- 启动 ----------
+(async function init() {
+  try {
+    S = await api("/api/state");
+  } catch (e) {
+    document.body.innerHTML = "<main><div class='notice err'>" + esc(e.message) + "</div></main>";
+    return;
+  }
+  $("ver").textContent = "v" + S.version;
+  $("configPath").textContent = S.configPath;
+  $("gitWarn").classList.toggle("hidden", S.gitOk);
+  $("pickDir").classList.toggle("hidden", !S.canPickDir);
+  $("parentDir").value = localStorage.getItem("star-yi.parentDir") || S.cwd;
+  const saved = localStorage.getItem("star-yi.edition");
+  selectEdition(edition(saved) ? saved : S.editions[0].id);
+  loadDraft();
+})();
+</script>
+</body>
+</html>
